@@ -5,15 +5,23 @@ type NavbarProps = {
   onSignInClick: () => void;
   isLoggedIn: boolean;
   onLogout: () => void;
+  onDashboardClick: () => void;
 };
 
-const Navbar = ({ onSignInClick, isLoggedIn, onLogout }: NavbarProps) => {
+const Navbar = ({ onSignInClick, isLoggedIn, onLogout, onDashboardClick }: NavbarProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      const offset = 80; // Height of the fixed navbar plus some padding
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+      
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
     }
     setIsOpen(false);
   };
@@ -23,7 +31,7 @@ const Navbar = ({ onSignInClick, isLoggedIn, onLogout }: NavbarProps) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center">
+            <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => window.location.href = '/'}>
               <Bike className="h-8 w-8 text-yellow-500" />
               <span className="ml-2 text-2xl font-bold text-blue-600">BikeRental360</span>
             </div>
@@ -51,10 +59,13 @@ const Navbar = ({ onSignInClick, isLoggedIn, onLogout }: NavbarProps) => {
             </button>
             {isLoggedIn ? (
               <div className="flex items-center space-x-4">
-                <a href="/dashboard" className="flex items-center space-x-2 text-gray-700 hover:text-blue-600">
+                <button
+                  onClick={onDashboardClick}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-blue-600"
+                >
                   <User className="h-5 w-5" />
                   <span>Dashboard</span>
-                </a>
+                </button>
                 <button 
                   onClick={onLogout}
                   className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition duration-300"
@@ -108,13 +119,13 @@ const Navbar = ({ onSignInClick, isLoggedIn, onLogout }: NavbarProps) => {
             </button>
             {isLoggedIn ? (
               <>
-                <a 
-                  href="/dashboard"
-                  className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600"
+                <button 
+                  onClick={onDashboardClick}
+                  className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600 w-full text-left"
                 >
                   <User className="h-5 w-5" />
                   <span>Dashboard</span>
-                </a>
+                </button>
                 <button 
                   onClick={onLogout}
                   className="w-full text-left bg-gray-200 text-gray-700 px-3 py-2 rounded-md hover:bg-gray-300 transition duration-300"

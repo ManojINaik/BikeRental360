@@ -12,14 +12,20 @@ import { useAuth } from './contexts/AuthContext';
 
 function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const { currentUser, logout } = useAuth();
 
   const handleLogout = async () => {
     try {
       await logout();
+      setShowDashboard(false);
     } catch (error) {
       console.error('Failed to log out:', error);
     }
+  };
+
+  const handleDashboardToggle = () => {
+    setShowDashboard(!showDashboard);
   };
 
   return (
@@ -28,10 +34,11 @@ function App() {
         onSignInClick={() => setShowAuthModal(true)} 
         isLoggedIn={!!currentUser}
         onLogout={handleLogout}
+        onDashboardClick={handleDashboardToggle}
       />
       
-      {currentUser ? (
-        <UserDashboard />
+      {showDashboard && currentUser ? (
+        <UserDashboard onClose={() => setShowDashboard(false)} />
       ) : (
         <>
           <Hero />

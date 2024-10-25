@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Star, MapPin, Calendar } from 'lucide-react';
 
 type BikeGridProps = {
@@ -8,49 +8,55 @@ type BikeGridProps = {
 const bikes = [
   {
     id: 1,
-    name: 'Harley-Davidson Iron 883',
+    name: 'Royal Enfield Classic 350',
     type: 'Cruiser',
-    location: 'New York, NY',
-    image: 'https://images.unsplash.com/photo-1558981359-219d6364c9c8?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    price: 89,
+    location: 'Bengaluru, Karnataka',
+    image: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+    price: 799,
     rating: 4.9,
     reviews: 128
   },
   {
     id: 2,
-    name: 'Ducati Monster',
+    name: 'KTM Duke 390',
     type: 'Sport',
-    location: 'Los Angeles, CA',
+    location: 'Mysuru, Karnataka',
     image: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    price: 119,
+    price: 1199,
     rating: 4.8,
     reviews: 96
   },
   {
     id: 3,
-    name: 'BMW R nineT',
-    type: 'Modern Classic',
-    location: 'Miami, FL',
+    name: 'Bajaj Dominar 400',
+    type: 'Sports Tourer',
+    location: 'Mangaluru, Karnataka',
     image: 'https://images.unsplash.com/photo-1599819811279-d5ad9cccf838?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    price: 139,
+    price: 999,
     rating: 4.9,
     reviews: 156
   },
   {
     id: 4,
-    name: 'Triumph Street Triple',
-    type: 'Sport',
-    location: 'Chicago, IL',
+    name: 'Honda CB350',
+    type: 'Modern Classic',
+    location: 'Hubballi, Karnataka',
     image: 'https://images.unsplash.com/photo-1571646034647-52e6ea84b28c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    price: 99,
+    price: 899,
     rating: 4.7,
     reviews: 84
   }
 ];
 
 const BikeGrid = ({ onBookNowClick }: BikeGridProps) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
       {bikes.map((bike) => (
         <div key={bike.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
           <div className="relative h-48">
@@ -80,7 +86,7 @@ const BikeGrid = ({ onBookNowClick }: BikeGridProps) => {
 
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-2xl font-bold text-blue-600">${bike.price}</span>
+                <span className="text-2xl font-bold text-blue-600">₹{bike.price}</span>
                 <span className="text-gray-500">/day</span>
               </div>
               <button 
