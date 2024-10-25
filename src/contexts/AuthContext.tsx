@@ -7,6 +7,8 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GithubAuthProvider,
   browserLocalPersistence,
   setPersistence
@@ -19,8 +21,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
-  signInWithGithub: () => Promise<void>;
+  signInWithGoogle: (useRedirect?: boolean) => Promise<void>;
+  signInWithGithub: (useRedirect?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +44,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       return;
     }
+
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          setCurrentUser(result.user);
+        }
+      } catch (error) {
+        console.error('Redirect sign-in error:', error);
+      }
+    };
+
+    handleRedirectResult();
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
@@ -68,18 +83,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await signOut(auth);
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (useRedirect = false) => {
     if (!auth) throw new Error('Firebase auth not initialized');
     const provider = new GoogleAuthProvider();
     await setPersistence(auth, browserLocalPersistence);
-    await signInWithPopup(auth, provider);
+    
+    try {
+      if (useRedirect) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/popup-blocked') {
+        // If popup is blocked, fall back to redirect
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw error;
+      }
+    }
   };
 
-  const signInWithGithub = async () => {
+  const signInWithGithub = async (useRedirect = false) => {
     if (!auth) throw new Error('Firebase auth not initialized');
     const provider = new GithubAuthProvider();
     await setPersistence(auth, browserLocalPersistence);
-    await signInWithPopup(auth, provider);
+    
+    try {
+      if (useRedirect) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/popup-blocked') {
+        // If popup is blocked, fall back to redirect
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw error;
+      }
+    }
   };
 
   const value = {

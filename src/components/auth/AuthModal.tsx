@@ -58,11 +58,27 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
     try {
       setError('');
       setLoading(true);
-      await (provider === 'google' ? signInWithGoogle() : signInWithGithub());
+      
+      const signInMethod = provider === 'google' ? signInWithGoogle : signInWithGithub;
+      
+      try {
+        // First try with popup
+        await signInMethod(false);
+      } catch (error: any) {
+        if (error.code === 'auth/popup-blocked') {
+          // Show redirect notice
+          setError('Redirecting you to sign in...');
+          // Fall back to redirect
+          await signInMethod(true);
+        } else {
+          throw error;
+        }
+      }
+      
       onLogin();
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to authenticate');
+    } catch (err: any) {
+      setError(err.message || 'Failed to authenticate');
     } finally {
       setLoading(false);
     }
@@ -81,7 +97,11 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
         </h2>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md flex items-center">
+          <div className={`mb-4 p-3 rounded-md flex items-center ${
+            error.includes('Redirecting') 
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-red-100 text-red-700'
+          }`}>
             <AlertCircle className="h-5 w-5 mr-2" />
             <span>{error}</span>
           </div>

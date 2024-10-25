@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { browserLocalPersistence, setPersistence } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBYHpb8Q6dJLyt3MIJhDYEMDqTSIe74Tfg",
@@ -11,18 +12,25 @@ const firebaseConfig = {
   measurementId: "G-JVRFVGP9F4"
 };
 
-let app;
-let auth;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  
-  // Enable persistence to handle token refresh
-  auth.setPersistence('local');
-} catch (error) {
-  console.error("Firebase initialization error:", error);
-}
+// Initialize Firebase Authentication and get a reference to the service
+const auth = getAuth(app);
 
-export { auth };
+// Initialize Google Auth Provider
+const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
+googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
+
+// Set persistence to local
+setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.error("Error setting auth persistence:", error);
+  });
+
+export { auth, googleProvider };
 export default app;
