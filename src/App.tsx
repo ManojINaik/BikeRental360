@@ -6,28 +6,34 @@ import BikeFilters from './components/bikes/BikeFilters';
 import BikeGrid from './components/bikes/BikeGrid';
 import AuthModal from './components/auth/AuthModal';
 import UserDashboard from './components/dashboard/UserDashboard';
+import { useAuth } from './contexts/AuthContext';
 
 function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
+  const { currentUser, logout } = useAuth();
 
-  const handleLogin = (profileData: any) => {
-    setUserProfile(profileData);
-    setIsLoggedIn(true);
-    setShowAuthModal(false);
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Failed to log out:', error);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar onSignInClick={() => setShowAuthModal(true)} isLoggedIn={isLoggedIn} />
+      <Navbar 
+        onSignInClick={() => setShowAuthModal(true)} 
+        isLoggedIn={!!currentUser}
+        onLogout={handleLogout}
+      />
       
-      {isLoggedIn ? (
-        <UserDashboard profile={userProfile} />
+      {currentUser ? (
+        <UserDashboard />
       ) : (
         <>
           <Hero />
-          <FeaturedBikes onBookNowClick={() => !isLoggedIn && setShowAuthModal(true)} />
+          <FeaturedBikes onBookNowClick={() => !currentUser && setShowAuthModal(true)} />
           <section className="py-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-8">Available Bikes</h2>
@@ -36,7 +42,7 @@ function App() {
                   <BikeFilters />
                 </div>
                 <div className="lg:col-span-3">
-                  <BikeGrid onBookNowClick={() => !isLoggedIn && setShowAuthModal(true)} />
+                  <BikeGrid onBookNowClick={() => !currentUser && setShowAuthModal(true)} />
                 </div>
               </div>
             </div>
@@ -47,7 +53,7 @@ function App() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        onLogin={handleLogin}
+        onLogin={() => setShowAuthModal(false)}
       />
     </div>
   );
