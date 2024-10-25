@@ -10,8 +10,10 @@ import UserDashboard from './components/dashboard/UserDashboard';
 function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
 
-  const handleLogin = () => {
+  const handleLogin = (profileData: any) => {
+    setUserProfile(profileData);
     setIsLoggedIn(true);
     setShowAuthModal(false);
   };
@@ -21,7 +23,7 @@ function App() {
       <Navbar onSignInClick={() => setShowAuthModal(true)} isLoggedIn={isLoggedIn} />
       
       {isLoggedIn ? (
-        <UserDashboard />
+        <UserDashboard profile={userProfile} />
       ) : (
         <>
           <Hero />
