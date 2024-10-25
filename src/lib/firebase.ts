@@ -1,6 +1,11 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { browserLocalPersistence, setPersistence } from "firebase/auth";
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  browserLocalPersistence, 
+  setPersistence,
+  GithubAuthProvider
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBYHpb8Q6dJLyt3MIJhDYEMDqTSIe74Tfg",
@@ -14,9 +19,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// Initialize Firebase Authentication and get a reference to the service
 const auth = getAuth(app);
+
+// Set persistence to local
+setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.error("Error setting auth persistence:", error);
+});
 
 // Initialize Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
@@ -26,11 +34,12 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-// Set persistence to local
-setPersistence(auth, browserLocalPersistence)
-  .catch((error) => {
-    console.error("Error setting auth persistence:", error);
-  });
+// Initialize GitHub Auth Provider
+const githubProvider = new GithubAuthProvider();
+githubProvider.addScope('user');
+githubProvider.setCustomParameters({
+  prompt: 'consent'
+});
 
-export { auth, googleProvider };
+export { auth, googleProvider, githubProvider };
 export default app;

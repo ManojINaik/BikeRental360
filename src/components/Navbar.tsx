@@ -4,10 +4,19 @@ import { Menu, X, Bike, User, Search } from 'lucide-react';
 type NavbarProps = {
   onSignInClick: () => void;
   isLoggedIn: boolean;
+  onLogout: () => void;
 };
 
-const Navbar = ({ onSignInClick, isLoggedIn }: NavbarProps) => {
+const Navbar = ({ onSignInClick, isLoggedIn, onLogout }: NavbarProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+    setIsOpen(false);
+  };
 
   return (
     <nav className="bg-white shadow-lg fixed w-full z-50">
@@ -22,20 +31,37 @@ const Navbar = ({ onSignInClick, isLoggedIn }: NavbarProps) => {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
-            <a href="#explore" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+            <button 
+              onClick={() => scrollToSection('explore')}
+              className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+            >
               Explore Bikes
-            </a>
-            <a href="#how-it-works" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+            </button>
+            <button 
+              onClick={() => scrollToSection('how-it-works')}
+              className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+            >
               How It Works
-            </a>
-            <a href="#become-owner" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+            </button>
+            <button 
+              onClick={() => scrollToSection('become-owner')}
+              className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+            >
               Become an Owner
-            </a>
+            </button>
             {isLoggedIn ? (
-              <a href="/dashboard" className="flex items-center space-x-2 text-gray-700 hover:text-blue-600">
-                <User className="h-5 w-5" />
-                <span>Dashboard</span>
-              </a>
+              <div className="flex items-center space-x-4">
+                <a href="/dashboard" className="flex items-center space-x-2 text-gray-700 hover:text-blue-600">
+                  <User className="h-5 w-5" />
+                  <span>Dashboard</span>
+                </a>
+                <button 
+                  onClick={onLogout}
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition duration-300"
+                >
+                  Logout
+                </button>
+              </div>
             ) : (
               <button 
                 onClick={onSignInClick}
@@ -62,20 +88,40 @@ const Navbar = ({ onSignInClick, isLoggedIn }: NavbarProps) => {
       {isOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <a href="#explore" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
+            <button
+              onClick={() => scrollToSection('explore')}
+              className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+            >
               Explore Bikes
-            </a>
-            <a href="#how-it-works" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
+            </button>
+            <button
+              onClick={() => scrollToSection('how-it-works')}
+              className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+            >
               How It Works
-            </a>
-            <a href="#become-owner" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
+            </button>
+            <button
+              onClick={() => scrollToSection('become-owner')}
+              className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+            >
               Become an Owner
-            </a>
+            </button>
             {isLoggedIn ? (
-              <a href="/dashboard" className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600">
-                <User className="h-5 w-5" />
-                <span>Dashboard</span>
-              </a>
+              <>
+                <a 
+                  href="/dashboard"
+                  className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600"
+                >
+                  <User className="h-5 w-5" />
+                  <span>Dashboard</span>
+                </a>
+                <button 
+                  onClick={onLogout}
+                  className="w-full text-left bg-gray-200 text-gray-700 px-3 py-2 rounded-md hover:bg-gray-300 transition duration-300"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <button 
                 onClick={onSignInClick}

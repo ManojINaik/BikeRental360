@@ -6,14 +6,16 @@ import RentalHistoryTab from './tabs/RentalHistoryTab';
 import PaymentsTab from './tabs/PaymentsTab';
 import NotificationsTab from './tabs/NotificationsTab';
 import SettingsTab from './tabs/SettingsTab';
+import { useAuth } from '../../contexts/AuthContext';
 
 const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState('profile');
+  const { currentUser } = useAuth();
 
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':
-        return <ProfileTab />;
+        return <ProfileTab user={currentUser} />;
       case 'rentals':
         return <ActiveRentalsTab />;
       case 'history':
@@ -34,7 +36,7 @@ const UserDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1">
-            <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+            <Sidebar activeTab={activeTab} onTabChange={setActiveTab} user={currentUser} />
           </div>
           <div className="lg:col-span-3">
             {renderContent()}

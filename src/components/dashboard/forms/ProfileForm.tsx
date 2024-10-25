@@ -1,16 +1,48 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { User as FirebaseUser } from 'firebase/auth';
 
-const ProfileForm = () => {
+type ProfileFormProps = {
+  user: FirebaseUser | null;
+};
+
+const ProfileForm = ({ user }: ProfileFormProps) => {
+  const [formData, setFormData] = useState({
+    firstName: user?.displayName?.split(' ')[0] || '',
+    lastName: user?.displayName?.split(' ')[1] || '',
+    email: user?.email || '',
+    phone: user?.phoneNumber || '',
+    address: '',
+    city: '',
+    state: '',
+    about: ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle profile update logic here
+    console.log('Profile update:', formData);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h3 className="text-xl font-semibold mb-6">Personal Information</h3>
-      <form className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
             <input
               type="text"
-              defaultValue="John"
+              name="firstName"
+              value={formData.firstName}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -18,7 +50,9 @@ const ProfileForm = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
             <input
               type="text"
-              defaultValue="Doe"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -26,40 +60,54 @@ const ProfileForm = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
             <input
               type="email"
-              defaultValue="john.doe@example.com"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              name="email"
+              value={formData.email}
+              readOnly
+              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
             <input
               type="tel"
-              defaultValue="+1 (555) 123-4567"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your phone number"
             />
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
             <input
               type="text"
-              defaultValue="123 Market Street"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your address"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
             <input
               type="text"
-              defaultValue="San Francisco"
+              name="city"
+              value={formData.city}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your city"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
             <input
               type="text"
-              defaultValue="CA"
+              name="state"
+              value={formData.state}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your state"
             />
           </div>
         </div>
@@ -67,9 +115,12 @@ const ProfileForm = () => {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">About Me</label>
           <textarea
+            name="about"
+            value={formData.about}
+            onChange={handleChange}
             rows={4}
-            defaultValue="Passionate motorcycle enthusiast with over 5 years of riding experience. Love exploring new routes and meeting fellow riders."
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Tell us about yourself..."
           />
         </div>
 

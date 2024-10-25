@@ -1,9 +1,11 @@
 import React from 'react';
 import { User, Bike, History, CreditCard, Bell, Settings } from 'lucide-react';
+import { User as FirebaseUser } from 'firebase/auth';
 
 type SidebarProps = {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  user: FirebaseUser | null;
 };
 
 const navItems = [
@@ -15,18 +17,22 @@ const navItems = [
   { id: 'settings', icon: Settings, label: 'Settings' }
 ];
 
-const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
+const Sidebar = ({ activeTab, onTabChange, user }: SidebarProps) => {
+  const joinDate = user?.metadata?.creationTime 
+    ? new Date(user.metadata.creationTime).getFullYear()
+    : new Date().getFullYear();
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center space-x-4 mb-6">
         <img
-          src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+          src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || 'User'}&background=random`}
           alt="Profile"
           className="h-12 w-12 rounded-full"
         />
         <div>
-          <h3 className="font-semibold text-gray-900">John Doe</h3>
-          <p className="text-sm text-gray-500">Member since 2024</p>
+          <h3 className="font-semibold text-gray-900">{user?.displayName || 'User'}</h3>
+          <p className="text-sm text-gray-500">Member since {joinDate}</p>
         </div>
       </div>
 
