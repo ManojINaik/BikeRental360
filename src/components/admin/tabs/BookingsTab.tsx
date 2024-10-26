@@ -72,7 +72,13 @@ const BookingsTab = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {mockBookings.map((booking) => (
+            {mockBookings
+              .filter(booking => 
+                booking.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                booking.bike.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                booking.id.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map((booking) => (
               <tr key={booking.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-blue-600">{booking.id}</div>
@@ -118,7 +124,7 @@ const BookingsTab = () => {
       <div className="px-6 py-4 border-t border-gray-200">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-700">
-            Showing 1 to 3 of 3 entries
+            Showing {mockBookings.length} entries
           </div>
           <div className="flex space-x-2">
             <button className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">

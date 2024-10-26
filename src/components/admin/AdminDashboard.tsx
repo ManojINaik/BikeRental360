@@ -29,9 +29,13 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
       case 'settings':
         return <SettingsTab />;
       default:
-        return null;
+        return <UsersTab />;
     }
   };
+
+  if (!currentUser) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">

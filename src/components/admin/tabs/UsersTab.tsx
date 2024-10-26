@@ -1,21 +1,42 @@
 import React, { useState } from 'react';
 import { Search, Filter, MoreVertical, Edit2, Trash2, UserPlus } from 'lucide-react';
+import AddUserModal from '../modals/AddUserModal';
 
 const UsersTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
-
-  const mockUsers = [
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [users, setUsers] = useState([
     { id: 1, name: 'John Doe', email: 'john@example.com', role: 'User', status: 'Active' },
     { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'Admin', status: 'Active' },
     { id: 3, name: 'Mike Johnson', email: 'mike@example.com', role: 'User', status: 'Suspended' },
-  ];
+  ]);
+
+  const handleAddUser = (newUser: any) => {
+    setUsers(prev => [...prev, { ...newUser, id: prev.length + 1 }]);
+    setShowAddModal(false);
+  };
+
+  const handleDeleteUser = (userId: number) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      setUsers(prev => prev.filter(user => user.id !== userId));
+    }
+  };
+
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="bg-white rounded-lg shadow-md">
       <div className="p-6 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
           <h2 className="text-xl font-semibold mb-4 sm:mb-0">Users Management</h2>
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
             <UserPlus className="h-5 w-5 mr-2" />
             Add New User
           </button>
@@ -51,7 +72,7 @@ const UsersTab = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {mockUsers.map((user) => (
+            {filteredUsers.map((user) => (
               <tr key={user.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -87,7 +108,10 @@ const UsersTab = () => {
                     <button className="text-blue-600 hover:text-blue-900">
                       <Edit2 className="h-5 w-5" />
                     </button>
-                    <button className="text-red-600 hover:text-red-900">
+                    <button 
+                      className="text-red-600 hover:text-red-900"
+                      onClick={() => handleDeleteUser(user.id)}
+                    >
                       <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
@@ -101,7 +125,7 @@ const UsersTab = () => {
       <div className="px-6 py-4 border-t border-gray-200">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-700">
-            Showing 1 to 3 of 3 entries
+            Showing {filteredUsers.length} of {users.length} users
           </div>
           <div className="flex space-x-2">
             <button className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
@@ -113,6 +137,12 @@ const UsersTab = () => {
           </div>
         </div>
       </div>
+
+      <AddUserModal 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddUser}
+      />
     </div>
   );
 };

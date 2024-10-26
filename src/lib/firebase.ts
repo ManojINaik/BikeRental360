@@ -8,15 +8,13 @@ import {
 } from 'firebase/auth';
 
 const firebaseConfig = {
-
-  apiKey: "secret",
-  authDomain: "bikerental360.firebaseapp.com",
-  projectId: "bikerental360",
-  storageBucket: "bikerental360.appspot.com",
-  messagingSenderId: "240755382954",
-  appId: "1:240755382954:web:c7c0984b44e6d544618ed3",
-  measurementId: "G-JVRFVGP9F4"
-
+  apiKey: 'AIzaSyBYHpb8Q6dJLyt3MIJhDYEMDqTSIe74Tfg',
+  authDomain: 'bikerental360.firebaseapp.com',
+  projectId: 'bikerental360',
+  storageBucket: 'bikerental360.appspot.com',
+  messagingSenderId: '240755382954',
+  appId: '1:240755382954:web:c7c0984b44e6d544618ed3',
+  measurementId: 'G-JVRFVGP9F4',
 };
 
 // Initialize Firebase
