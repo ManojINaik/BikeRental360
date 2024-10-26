@@ -8,7 +8,7 @@ import {
 } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBYHpb8Q6dJLyt3MIJhDYEMDqTSIe74Tfg",
+  apiKey: "secret",
   authDomain: "bikerental360.firebaseapp.com",
   projectId: "bikerental360",
   storageBucket: "bikerental360.appspot.com",
