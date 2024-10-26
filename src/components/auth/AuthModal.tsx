@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Mail, Lock, Github, Chrome, User, Phone, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Mail, Lock, Github, Chrome, User, Phone } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 type AuthModalProps = {
@@ -9,11 +9,8 @@ type AuthModalProps = {
 };
 
 const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
+  const { login, signup, loginWithGoogle, loginWithGithub, loading, error: authError, clearError } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { signIn, signUp, signInWithGoogle, signInWithGithub } = useAuth();
-
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -21,6 +18,20 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
     phone: '',
     confirmPassword: ''
   });
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+    }
+  }, [authError]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      clearError();
+      setError('');
+    }
+  }, [isOpen, clearError]);
 
   if (!isOpen) return null;
 
@@ -29,58 +40,71 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
       ...prev,
       [e.target.name]: e.target.value
     }));
+    setError('');
+    clearError();
+  };
+
+  const validateForm = () => {
+    if (!formData.email || !formData.password) {
+      setError('Please fill in all required fields');
+      return false;
+    }
+
+    if (!isLogin) {
+      if (!formData.name) {
+        setError('Name is required');
+        return false;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match');
+        return false;
+      }
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters');
+        return false;
+      }
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearError();
     setError('');
-    setLoading(true);
+    
+    if (!validateForm()) return;
 
     try {
       if (isLogin) {
-        await signIn(formData.email, formData.password);
+        await login(formData.email, formData.password);
       } else {
-        if (formData.password !== formData.confirmPassword) {
-          throw new Error('Passwords do not match');
-        }
-        await signUp(formData.email, formData.password);
+        await signup(formData.name, formData.email, formData.password, formData.phone);
       }
       onLogin();
-      onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to authenticate');
-    } finally {
-      setLoading(false);
+      // Error is handled by the auth context
     }
   };
 
   const handleSocialLogin = async (provider: 'google' | 'github') => {
+    clearError();
+    setError('');
     try {
-      setError('');
-      setLoading(true);
-      
-      const signInMethod = provider === 'google' ? signInWithGoogle : signInWithGithub;
-      
-      try {
-        // First try with popup
-        await signInMethod(false);
-      } catch (error: any) {
-        if (error.code === 'auth/popup-blocked') {
-          // Show redirect notice
-          setError('Redirecting you to sign in...');
-          // Fall back to redirect
-          await signInMethod(true);
-        } else {
-          throw error;
-        }
+      if (provider === 'google') {
+        await loginWithGoogle();
+      } else {
+        await loginWithGithub();
       }
-      
       onLogin();
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Failed to authenticate');
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      // Error is handled by the auth context
     }
   };
 
@@ -88,8 +112,12 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black opacity-50" onClick={onClose}></div>
       <div className="relative bg-white rounded-lg w-full max-w-md p-8">
-        <button onClick={onClose} className="absolute top-4 right-4">
-          <X className="h-6 w-6 text-gray-400 hover:text-gray-600" />
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          disabled={loading}
+        >
+          <X className="h-6 w-6" />
         </button>
         
         <h2 className="text-2xl font-bold text-center mb-6">
@@ -97,13 +125,8 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
         </h2>
 
         {error && (
-          <div className={`mb-4 p-3 rounded-md flex items-center ${
-            error.includes('Redirecting') 
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-red-100 text-red-700'
-          }`}>
-            <AlertCircle className="h-5 w-5 mr-2" />
-            <span>{error}</span>
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md text-sm">
+            {error}
           </div>
         )}
 
@@ -122,6 +145,7 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter your full name"
                     required={!isLogin}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -137,6 +161,7 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                     onChange={handleChange}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter your phone number"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -155,6 +180,7 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your email"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -171,6 +197,7 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your password"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -188,6 +215,7 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Confirm your password"
                   required={!isLogin}
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -195,10 +223,10 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
 
           <button 
             type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition duration-300 disabled:opacity-50"
           >
-            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+            {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
           </button>
 
           {isLogin && (
@@ -216,8 +244,8 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                 <button 
                   type="button"
                   onClick={() => handleSocialLogin('google')}
+                  className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={loading}
-                  className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
                   <Chrome className="h-5 w-5 mr-2" />
                   Google
@@ -225,8 +253,8 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                 <button 
                   type="button"
                   onClick={() => handleSocialLogin('github')}
+                  className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={loading}
-                  className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
                   <Github className="h-5 w-5 mr-2" />
                   GitHub
@@ -241,7 +269,6 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
               type="button"
               onClick={() => {
                 setIsLogin(!isLogin);
-                setError('');
                 setFormData({
                   email: '',
                   password: '',
@@ -249,8 +276,11 @@ const AuthModal = ({ isOpen, onClose, onLogin }: AuthModalProps) => {
                   phone: '',
                   confirmPassword: ''
                 });
+                setError('');
+                clearError();
               }}
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              className="text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+              disabled={loading}
             >
               {isLogin ? 'Sign Up' : 'Sign In'}
             </button>

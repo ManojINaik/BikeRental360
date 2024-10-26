@@ -1,100 +1,143 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'user' | 'admin';
-}
+import { authService, User } from '../services/auth';
 
 interface AuthContextType {
-  currentUser: User | null;
+  user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
+  error: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, phone?: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginWithGithub: () => Promise<void>;
   logout: () => Promise<void>;
-  isAdmin: boolean;
+  clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    checkAuthStatus();
+    const initAuth = async () => {
+      try {
+        const currentUser = await authService.getCurrentUser();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        authService.clearUser();
+      } finally {
+        setLoading(false);
+        setInitialized(true);
+      }
+    };
+
+    initAuth();
   }, []);
 
-  const checkAuthStatus = async () => {
+  const handleAuthError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : 'An unexpected error occurred';
+    setError(message);
+    throw error;
+  };
+
+  const login = async (email: string, password: string) => {
     try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const response = await axios.get('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setCurrentUser(response.data.user);
-        setIsAdmin(response.data.user.role === 'admin');
-      }
+      setLoading(true);
+      setError(null);
+      const response = await authService.login({ email, password });
+      setUser(response.user);
     } catch (error) {
-      localStorage.removeItem('token');
+      handleAuthError(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signup = async (name: string, email: string, password: string, phone?: string) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      setCurrentUser(user);
-      setIsAdmin(user.role === 'admin');
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to sign in');
+      setLoading(true);
+      setError(null);
+      const response = await authService.signup({ name, email, password, phone });
+      setUser(response.user);
+    } catch (error) {
+      handleAuthError(error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const signUp = async (name: string, email: string, password: string) => {
+  const loginWithGoogle = async () => {
     try {
-      const response = await axios.post('/api/auth/register', { name, email, password });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      setCurrentUser(user);
-      setIsAdmin(user.role === 'admin');
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to sign up');
+      setLoading(true);
+      setError(null);
+      const response = await authService.loginWithProvider('google');
+      setUser(response.user);
+    } catch (error) {
+      handleAuthError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithGithub = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await authService.loginWithProvider('github');
+      setUser(response.user);
+    } catch (error) {
+      handleAuthError(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
-    localStorage.removeItem('token');
-    setCurrentUser(null);
-    setIsAdmin(false);
+    try {
+      setLoading(true);
+      setError(null);
+      await authService.logout();
+      setUser(null);
+    } catch (error) {
+      handleAuthError(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const value = {
-    currentUser,
-    loading,
-    signIn,
-    signUp,
-    logout,
-    isAdmin
-  };
+  const clearError = () => setError(null);
+
+  if (!initialized) {
+    return null;
+  }
 
   return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        error,
+        login,
+        signup,
+        loginWithGoogle,
+        loginWithGithub,
+        logout,
+        clearError,
+      }}
+    >
+      {children}
     </AuthContext.Provider>
   );
-};
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}

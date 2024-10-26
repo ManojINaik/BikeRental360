@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Star, MapPin, Calendar } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 
 type BikeGridProps = {
   onBookNowClick: () => void;
@@ -9,68 +8,49 @@ type BikeGridProps = {
 const bikes = [
   {
     id: 1,
-    name: 'Royal Enfield Classic 350',
+    name: 'Harley-Davidson Iron 883',
     type: 'Cruiser',
-    location: 'Bengaluru, Karnataka',
-    image: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    price: 799,
+    location: 'New York, NY',
+    image: 'https://images.unsplash.com/photo-1558981359-219d6364c9c8?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+    price: 89,
     rating: 4.9,
     reviews: 128
   },
   {
     id: 2,
-    name: 'KTM Duke 390',
+    name: 'Ducati Monster',
     type: 'Sport',
-    location: 'Mysuru, Karnataka',
+    location: 'Los Angeles, CA',
     image: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    price: 1199,
+    price: 119,
     rating: 4.8,
     reviews: 96
   },
   {
     id: 3,
-    name: 'Bajaj Dominar 400',
-    type: 'Sports Tourer',
-    location: 'Mangaluru, Karnataka',
+    name: 'BMW R nineT',
+    type: 'Modern Classic',
+    location: 'Miami, FL',
     image: 'https://images.unsplash.com/photo-1599819811279-d5ad9cccf838?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    price: 999,
+    price: 139,
     rating: 4.9,
     reviews: 156
   },
   {
     id: 4,
-    name: 'Honda CB350',
-    type: 'Modern Classic',
-    location: 'Hubballi, Karnataka',
+    name: 'Triumph Street Triple',
+    type: 'Sport',
+    location: 'Chicago, IL',
     image: 'https://images.unsplash.com/photo-1571646034647-52e6ea84b28c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    price: 899,
+    price: 99,
     rating: 4.7,
     reviews: 84
   }
 ];
 
 const BikeGrid = ({ onBookNowClick }: BikeGridProps) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const { currentUser } = useAuth();
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
-
-  const handleBookNow = () => {
-    if (!currentUser) {
-      onBookNowClick();
-    } else {
-      // If user is logged in, scroll to booking form
-      const bookingForm = document.getElementById('booking-form');
-      if (bookingForm) {
-        bookingForm.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
-  };
-
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {bikes.map((bike) => (
         <div key={bike.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
           <div className="relative h-48">
@@ -100,11 +80,11 @@ const BikeGrid = ({ onBookNowClick }: BikeGridProps) => {
 
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-2xl font-bold text-blue-600">₹{bike.price}</span>
+                <span className="text-2xl font-bold text-blue-600">${bike.price}</span>
                 <span className="text-gray-500">/day</span>
               </div>
               <button 
-                onClick={handleBookNow}
+                onClick={onBookNowClick}
                 className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition duration-300"
               >
                 Book Now

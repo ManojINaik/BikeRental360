@@ -4,35 +4,17 @@ import { Menu, X, Bike, User, Search } from 'lucide-react';
 type NavbarProps = {
   onSignInClick: () => void;
   isLoggedIn: boolean;
-  onLogout: () => void;
-  onDashboardClick: () => void;
-  isAdmin?: boolean;
 };
 
-const Navbar = ({ onSignInClick, isLoggedIn, onLogout, onDashboardClick, isAdmin = false }: NavbarProps) => {
+const Navbar = ({ onSignInClick, isLoggedIn }: NavbarProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
-
-  const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      const offset = 80;
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - offset;
-      
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
-      });
-    }
-    setIsOpen(false);
-  };
 
   return (
     <nav className="bg-white shadow-lg fixed w-full z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => window.location.href = '/'}>
+            <div className="flex-shrink-0 flex items-center">
               <Bike className="h-8 w-8 text-yellow-500" />
               <span className="ml-2 text-2xl font-bold text-blue-600">BikeRental360</span>
             </div>
@@ -40,40 +22,20 @@ const Navbar = ({ onSignInClick, isLoggedIn, onLogout, onDashboardClick, isAdmin
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
-            <button 
-              onClick={() => scrollToSection('explore')}
-              className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-            >
+            <a href="#explore" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
               Explore Bikes
-            </button>
-            <button 
-              onClick={() => scrollToSection('how-it-works')}
-              className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-            >
+            </a>
+            <a href="#how-it-works" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
               How It Works
-            </button>
-            <button 
-              onClick={() => scrollToSection('become-owner')}
-              className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-            >
+            </a>
+            <a href="#become-owner" className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
               Become an Owner
-            </button>
+            </a>
             {isLoggedIn ? (
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={onDashboardClick}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-blue-600"
-                >
-                  <User className="h-5 w-5" />
-                  <span>{isAdmin ? 'Admin Dashboard' : 'Dashboard'}</span>
-                </button>
-                <button 
-                  onClick={onLogout}
-                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition duration-300"
-                >
-                  Logout
-                </button>
-              </div>
+              <a href="/dashboard" className="flex items-center space-x-2 text-gray-700 hover:text-blue-600">
+                <User className="h-5 w-5" />
+                <span>Dashboard</span>
+              </a>
             ) : (
               <button 
                 onClick={onSignInClick}
@@ -100,40 +62,20 @@ const Navbar = ({ onSignInClick, isLoggedIn, onLogout, onDashboardClick, isAdmin
       {isOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <button
-              onClick={() => scrollToSection('explore')}
-              className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
-            >
+            <a href="#explore" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
               Explore Bikes
-            </button>
-            <button
-              onClick={() => scrollToSection('how-it-works')}
-              className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
-            >
+            </a>
+            <a href="#how-it-works" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
               How It Works
-            </button>
-            <button
-              onClick={() => scrollToSection('become-owner')}
-              className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
-            >
+            </a>
+            <a href="#become-owner" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
               Become an Owner
-            </button>
+            </a>
             {isLoggedIn ? (
-              <>
-                <button 
-                  onClick={onDashboardClick}
-                  className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600 w-full text-left"
-                >
-                  <User className="h-5 w-5" />
-                  <span>{isAdmin ? 'Admin Dashboard' : 'Dashboard'}</span>
-                </button>
-                <button 
-                  onClick={onLogout}
-                  className="w-full text-left bg-gray-200 text-gray-700 px-3 py-2 rounded-md hover:bg-gray-300 transition duration-300"
-                >
-                  Logout
-                </button>
-              </>
+              <a href="/dashboard" className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600">
+                <User className="h-5 w-5" />
+                <span>Dashboard</span>
+              </a>
             ) : (
               <button 
                 onClick={onSignInClick}
