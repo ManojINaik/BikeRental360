@@ -1,21 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, UserPlus } from 'lucide-react';
 import AddUserModal from '../modals/AddUserModal';
-import { auth } from '../../../lib/firebase';
-import { createUserWithEmailAndPassword, updateProfile, getAuth, listUsers } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getAllUsers, deleteUser, searchUsers, DBUser } from '../../../services/userService';
 
 const UsersTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<DBUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editingUser, setEditingUser] = useState<any>(null);
-
-  const db = getFirestore();
-  const functions = getFunctions();
+  const [editingUser, setEditingUser] = useState<DBUser | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -23,107 +17,23 @@ const UsersTab = () => {
 
   const fetchUsers = async () => {
     try {
-      // Create a Cloud Function to list users since client-side can't directly list Firebase Auth users
-      const listAllUsers = httpsCallable(functions, 'listUsers');
-      const result = await listAllUsers();
-      const firebaseUsers = result.data as any[];
-
-      // Get additional user data from Firestore
-      const usersCollection = collection(db, 'users');
-      const snapshot = await getDocs(usersCollection);
-      const firestoreUsers = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // Merge Firebase Auth users with Firestore data
-      const mergedUsers = firebaseUsers.map(authUser => {
-        const firestoreUser = firestoreUsers.find(user => user.uid === authUser.uid);
-        return {
-          ...authUser,
-          ...firestoreUser,
-          id: authUser.uid,
-          status: firestoreUser?.status || 'Active',
-          role: firestoreUser?.role || 'User'
-        };
-      });
-
-      setUsers(mergedUsers);
+      const fetchedUsers = await getAllUsers();
+      setUsers(fetchedUsers);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching users:', err);
-      setError('Failed to load users. Please make sure you have the necessary permissions.');
+      setError('Failed to load users');
       setLoading(false);
     }
   };
 
-  const handleAddUser = async (userData: any) => {
+  const handleSearch = async () => {
     try {
-      // Check if email already exists in Firestore
-      const usersRef = collection(db, 'users');
-      const emailQuery = query(usersRef, where('email', '==', userData.email));
-      const emailSnapshot = await getDocs(emailQuery);
-
-      if (!emailSnapshot.empty) {
-        throw new Error('A user with this email already exists');
-      }
-
-      // Create auth user
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        userData.email,
-        userData.password
-      );
-
-      // Update profile
-      await updateProfile(userCredential.user, {
-        displayName: userData.name
-      });
-
-      // Add to Firestore
-      await addDoc(collection(db, 'users'), {
-        uid: userCredential.user.uid,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-        status: userData.status,
-        phone: userData.phone,
-        createdAt: new Date().toISOString()
-      });
-
-      // Refresh user list
-      await fetchUsers();
-      setShowAddModal(false);
-      setError('');
-    } catch (err: any) {
-      let errorMessage = 'Failed to add user';
-      
-      if (err.code === 'auth/email-already-in-use' || err.message === 'A user with this email already exists') {
-        errorMessage = 'This email address is already registered. Please use a different email.';
-      } else if (err.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (err.code === 'auth/weak-password') {
-        errorMessage = 'Password should be at least 6 characters long.';
-      }
-      
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    }
-  };
-
-  const handleEditUser = async (userId: string, updatedData: any) => {
-    try {
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, updatedData);
-      
-      // Refresh user list
-      await fetchUsers();
-      setEditingUser(null);
-      setError('');
+      const results = await searchUsers({ query: searchTerm });
+      setUsers(results);
     } catch (err) {
-      const errorMessage = 'Failed to update user';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      console.error('Error searching users:', err);
+      setError('Failed to search users');
     }
   };
 
@@ -131,29 +41,14 @@ const UsersTab = () => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      // Create a Cloud Function to delete the Firebase Auth user
-      const deleteUserFunction = httpsCallable(functions, 'deleteUser');
-      await deleteUserFunction({ uid: userId });
-
-      // Delete from Firestore
-      const userDoc = doc(db, 'users', userId);
-      await deleteDoc(userDoc);
-
-      // Refresh user list
+      await deleteUser(userId);
       await fetchUsers();
       setError('');
     } catch (err) {
-      const errorMessage = 'Failed to delete user';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      console.error('Error deleting user:', err);
+      setError('Failed to delete user');
     }
   };
-
-  const filteredUsers = users.filter(user => 
-    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
@@ -186,13 +81,22 @@ const UsersTab = () => {
               type="text"
               placeholder="Search users..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                if (!e.target.value) {
+                  fetchUsers();
+                }
+              }}
+              onKeyUp={(e) => e.key === 'Enter' && handleSearch()}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-            <Filter className="h-5 w-5 mr-2" />
-            Filters
+          <button 
+            onClick={handleSearch}
+            className="flex items-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            <Search className="h-5 w-5 mr-2" />
+            Search
           </button>
         </div>
       </div>
@@ -209,22 +113,14 @@ const UsersTab = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredUsers.map((user) => (
+            {users.map((user) => (
               <tr key={user.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      {user.photoURL ? (
-                        <img 
-                          src={user.photoURL} 
-                          alt={user.name} 
-                          className="h-10 w-10 rounded-full"
-                        />
-                      ) : (
-                        <span className="text-gray-600 font-medium">
-                          {user.name?.charAt(0)}
-                        </span>
-                      )}
+                      <span className="text-gray-600 font-medium">
+                        {user.name?.charAt(0)}
+                      </span>
                     </div>
                     <div className="ml-4">
                       <div className="text-sm font-medium text-gray-900">{user.name}</div>
@@ -236,14 +132,14 @@ const UsersTab = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    user.role === 'Admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                    user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
                   }`}>
                     {user.role}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   }`}>
                     {user.status}
                   </span>
@@ -273,7 +169,7 @@ const UsersTab = () => {
       <div className="px-6 py-4 border-t border-gray-200">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-700">
-            Showing {filteredUsers.length} of {users.length} users
+            Showing {users.length} users
           </div>
         </div>
       </div>
@@ -282,11 +178,30 @@ const UsersTab = () => {
         isOpen={showAddModal} 
         onClose={() => {
           setShowAddModal(false);
+          setEditingUser(null);
           setError('');
         }}
-        onAdd={handleAddUser}
+        onAdd={async (userData) => {
+          try {
+            // Handle user creation through your service
+            await fetchUsers();
+            setShowAddModal(false);
+          } catch (err: any) {
+            setError(err.message);
+            throw err;
+          }
+        }}
         editingUser={editingUser}
-        onEdit={handleEditUser}
+        onEdit={async (id, userData) => {
+          try {
+            // Handle user update through your service
+            await fetchUsers();
+            setEditingUser(null);
+          } catch (err: any) {
+            setError(err.message);
+            throw err;
+          }
+        }}
         error={error}
       />
     </div>
