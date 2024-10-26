@@ -36,33 +36,42 @@ const BikesTab = () => {
 
   const handleAddBike = async (bikeData: any) => {
     try {
-      const bikeDoc = await addDoc(collection(db, 'bikes'), {
+      const bikesCollection = collection(db, 'bikes');
+      const newBike = {
         ...bikeData,
-        createdAt: new Date().toISOString()
-      });
+        createdAt: new Date().toISOString(),
+        rating: 0,
+        reviews: 0,
+        status: 'Available'
+      };
 
-      setBikes(prev => [...prev, { id: bikeDoc.id, ...bikeData }]);
+      await addDoc(bikesCollection, newBike);
+      await fetchBikes();
       setShowAddModal(false);
+      setError('');
     } catch (err) {
       console.error('Error adding bike:', err);
       setError('Failed to add bike');
+      throw new Error('Failed to add bike');
     }
   };
 
   const handleEditBike = async (bikeId: string, updatedData: any) => {
     try {
       const bikeRef = doc(db, 'bikes', bikeId);
-      await updateDoc(bikeRef, updatedData);
+      await updateDoc(bikeRef, {
+        ...updatedData,
+        updatedAt: new Date().toISOString()
+      });
       
-      setBikes(prev => prev.map(bike => 
-        bike.id === bikeId ? { ...bike, ...updatedData } : bike
-      ));
-      
+      await fetchBikes();
       setEditingBike(null);
       setShowAddModal(false);
+      setError('');
     } catch (err) {
       console.error('Error updating bike:', err);
       setError('Failed to update bike');
+      throw new Error('Failed to update bike');
     }
   };
 
@@ -70,11 +79,14 @@ const BikesTab = () => {
     if (!window.confirm('Are you sure you want to delete this bike?')) return;
 
     try {
-      await deleteDoc(doc(db, 'bikes', bikeId));
-      setBikes(prev => prev.filter(bike => bike.id !== bikeId));
+      const bikeRef = doc(db, 'bikes', bikeId);
+      await deleteDoc(bikeRef);
+      await fetchBikes();
+      setError('');
     } catch (err) {
       console.error('Error deleting bike:', err);
       setError('Failed to delete bike');
+      throw new Error('Failed to delete bike');
     }
   };
 
@@ -86,14 +98,6 @@ const BikesTab = () => {
 
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 text-red-600 p-4 rounded-lg">
-        {error}
-      </div>
-    );
   }
 
   return (
@@ -112,6 +116,12 @@ const BikesTab = () => {
             Add New Bike
           </button>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+            {error}
+          </div>
+        )}
         
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
@@ -147,7 +157,16 @@ const BikesTab = () => {
             {filteredBikes.map((bike) => (
               <tr key={bike.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{bike.name}</div>
+                  <div className="flex items-center">
+                    {bike.imageUrl && (
+                      <img 
+                        src={bike.imageUrl} 
+                        alt={bike.name}
+                        className="h-10 w-10 rounded-md object-cover mr-3"
+                      />
+                    )}
+                    <div className="text-sm font-medium text-gray-900">{bike.name}</div>
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{bike.type}</div>
@@ -205,6 +224,7 @@ const BikesTab = () => {
         onClose={() => {
           setShowAddModal(false);
           setEditingBike(null);
+          setError('');
         }}
         onAdd={handleAddBike}
         onEdit={handleEditBike}

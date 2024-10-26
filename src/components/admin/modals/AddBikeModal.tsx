@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 
 type AddBikeModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (bike: any) => void;
-  onEdit?: (id: string, bike: any) => void;
+  onAdd: (bike: any) => Promise<void>;
+  onEdit?: (id: string, bike: any) => Promise<void>;
   editingBike?: any;
 };
 
@@ -14,7 +14,6 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
     name: '',
     type: 'Cruiser',
     location: '',
-    status: 'Available',
     price: '',
     description: '',
     features: '',
@@ -22,6 +21,7 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
   });
 
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (editingBike) {
@@ -29,7 +29,6 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
         name: editingBike.name || '',
         type: editingBike.type || 'Cruiser',
         location: editingBike.location || '',
-        status: editingBike.status || 'Available',
         price: editingBike.price || '',
         description: editingBike.description || '',
         features: editingBike.features || '',
@@ -40,13 +39,13 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
         name: '',
         type: 'Cruiser',
         location: '',
-        status: 'Available',
         price: '',
         description: '',
         features: '',
         imageUrl: ''
       });
     }
+    setError('');
   }, [editingBike]);
 
   if (!isOpen) return null;
@@ -60,23 +59,50 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
     setError('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError('Bike name is required');
+      return false;
+    }
+    if (!formData.location.trim()) {
+      setError('Location is required');
+      return false;
+    }
+    if (!formData.price || Number(formData.price) <= 0) {
+      setError('Please enter a valid price');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.location || !formData.price) {
-      setError('Please fill in all required fields');
+    if (!validateForm()) {
       return;
     }
 
-    if (editingBike && onEdit) {
-      onEdit(editingBike.id, formData);
-    } else {
-      onAdd(formData);
+    setLoading(true);
+    try {
+      const bikeData = {
+        ...formData,
+        price: Number(formData.price)
+      };
+
+      if (editingBike && onEdit) {
+        await onEdit(editingBike.id, bikeData);
+      } else {
+        await onAdd(bikeData);
+      }
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save bike');
+    } finally {
+      setLoading(false);
     }
   };
 
   const bikeTypes = ['Cruiser', 'Sport', 'Adventure', 'Touring', 'Cafe Racer', 'Scooter'];
-  const statusOptions = ['Available', 'Rented', 'Maintenance'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -94,8 +120,9 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
         </h2>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-            {error}
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            <span>{error}</span>
           </div>
         )}
 
@@ -148,22 +175,6 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status
-            </label>
-            <select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {statusOptions.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
               Price per Day (₹) *
             </label>
             <input
@@ -173,6 +184,7 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter price per day"
+              min="0"
               required
             />
           </div>
@@ -224,14 +236,16 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
               type="button"
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              disabled={loading}
             >
-              {editingBike ? 'Update Bike' : 'Add Bike'}
+              {loading ? 'Saving...' : (editingBike ? 'Update Bike' : 'Add Bike')}
             </button>
           </div>
         </form>

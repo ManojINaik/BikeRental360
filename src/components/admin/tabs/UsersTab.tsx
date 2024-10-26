@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, UserPlus } from 'lucide-react';
 import AddUserModal from '../modals/AddUserModal';
 import { auth } from '../../../lib/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, getAuth, listUsers } from 'firebase/auth';
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const UsersTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,6 +15,7 @@ const UsersTab = () => {
   const [editingUser, setEditingUser] = useState<any>(null);
 
   const db = getFirestore();
+  const functions = getFunctions();
 
   useEffect(() => {
     fetchUsers();
@@ -21,17 +23,36 @@ const UsersTab = () => {
 
   const fetchUsers = async () => {
     try {
+      // Create a Cloud Function to list users since client-side can't directly list Firebase Auth users
+      const listAllUsers = httpsCallable(functions, 'listUsers');
+      const result = await listAllUsers();
+      const firebaseUsers = result.data as any[];
+
+      // Get additional user data from Firestore
       const usersCollection = collection(db, 'users');
       const snapshot = await getDocs(usersCollection);
-      const usersList = snapshot.docs.map(doc => ({
+      const firestoreUsers = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      setUsers(usersList);
+
+      // Merge Firebase Auth users with Firestore data
+      const mergedUsers = firebaseUsers.map(authUser => {
+        const firestoreUser = firestoreUsers.find(user => user.uid === authUser.uid);
+        return {
+          ...authUser,
+          ...firestoreUser,
+          id: authUser.uid,
+          status: firestoreUser?.status || 'Active',
+          role: firestoreUser?.role || 'User'
+        };
+      });
+
+      setUsers(mergedUsers);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching users:', err);
-      setError('Failed to load users');
+      setError('Failed to load users. Please make sure you have the necessary permissions.');
       setLoading(false);
     }
   };
@@ -60,7 +81,7 @@ const UsersTab = () => {
       });
 
       // Add to Firestore
-      const userDoc = await addDoc(collection(db, 'users'), {
+      await addDoc(collection(db, 'users'), {
         uid: userCredential.user.uid,
         name: userData.name,
         email: userData.email,
@@ -70,7 +91,8 @@ const UsersTab = () => {
         createdAt: new Date().toISOString()
       });
 
-      setUsers(prev => [...prev, { id: userDoc.id, ...userData }]);
+      // Refresh user list
+      await fetchUsers();
       setShowAddModal(false);
       setError('');
     } catch (err: any) {
@@ -94,10 +116,8 @@ const UsersTab = () => {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, updatedData);
       
-      setUsers(prev => prev.map(user => 
-        user.id === userId ? { ...user, ...updatedData } : user
-      ));
-      
+      // Refresh user list
+      await fetchUsers();
       setEditingUser(null);
       setError('');
     } catch (err) {
@@ -111,8 +131,16 @@ const UsersTab = () => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
 
     try {
-      await deleteDoc(doc(db, 'users', userId));
-      setUsers(prev => prev.filter(user => user.id !== userId));
+      // Create a Cloud Function to delete the Firebase Auth user
+      const deleteUserFunction = httpsCallable(functions, 'deleteUser');
+      await deleteUserFunction({ uid: userId });
+
+      // Delete from Firestore
+      const userDoc = doc(db, 'users', userId);
+      await deleteDoc(userDoc);
+
+      // Refresh user list
+      await fetchUsers();
       setError('');
     } catch (err) {
       const errorMessage = 'Failed to delete user';
@@ -186,9 +214,17 @@ const UsersTab = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-600 font-medium">
-                        {user.name?.charAt(0)}
-                      </span>
+                      {user.photoURL ? (
+                        <img 
+                          src={user.photoURL} 
+                          alt={user.name} 
+                          className="h-10 w-10 rounded-full"
+                        />
+                      ) : (
+                        <span className="text-gray-600 font-medium">
+                          {user.name?.charAt(0)}
+                        </span>
+                      )}
                     </div>
                     <div className="ml-4">
                       <div className="text-sm font-medium text-gray-900">{user.name}</div>
