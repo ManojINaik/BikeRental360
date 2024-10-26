@@ -1,32 +1,119 @@
-import React, { useState } from 'react';
-import { Search, Filter, MoreVertical, Edit2, Trash2, UserPlus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, UserPlus } from 'lucide-react';
 import AddUserModal from '../modals/AddUserModal';
+import { auth } from '../../../lib/firebase';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 
 const UsersTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [users, setUsers] = useState([
-    { id: 1, name: 'John Doe', email: 'john@example.com', role: 'User', status: 'Active' },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'Admin', status: 'Active' },
-    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', role: 'User', status: 'Suspended' },
-  ]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [editingUser, setEditingUser] = useState<any>(null);
 
-  const handleAddUser = (newUser: any) => {
-    setUsers(prev => [...prev, { ...newUser, id: prev.length + 1 }]);
-    setShowAddModal(false);
+  const db = getFirestore();
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const usersCollection = collection(db, 'users');
+      const snapshot = await getDocs(usersCollection);
+      const usersList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setUsers(usersList);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      setError('Failed to load users');
+      setLoading(false);
+    }
   };
 
-  const handleDeleteUser = (userId: number) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+  const handleAddUser = async (userData: any) => {
+    try {
+      // Create auth user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        userData.email,
+        userData.password
+      );
+
+      // Update profile
+      await updateProfile(userCredential.user, {
+        displayName: userData.name
+      });
+
+      // Add to Firestore
+      const userDoc = await addDoc(collection(db, 'users'), {
+        uid: userCredential.user.uid,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        status: userData.status,
+        phone: userData.phone,
+        createdAt: new Date().toISOString()
+      });
+
+      setUsers(prev => [...prev, { id: userDoc.id, ...userData }]);
+      setShowAddModal(false);
+    } catch (err) {
+      console.error('Error adding user:', err);
+      setError('Failed to add user');
+    }
+  };
+
+  const handleEditUser = async (userId: string, updatedData: any) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, updatedData);
+      
+      setUsers(prev => prev.map(user => 
+        user.id === userId ? { ...user, ...updatedData } : user
+      ));
+      
+      setEditingUser(null);
+    } catch (err) {
+      console.error('Error updating user:', err);
+      setError('Failed to update user');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+
+    try {
+      await deleteDoc(doc(db, 'users', userId));
       setUsers(prev => prev.filter(user => user.id !== userId));
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      setError('Failed to delete user');
     }
   };
 
   const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 text-red-600 p-4 rounded-lg">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-md">
@@ -78,7 +165,7 @@ const UsersTab = () => {
                   <div className="flex items-center">
                     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                       <span className="text-gray-600 font-medium">
-                        {user.name.charAt(0)}
+                        {user.name?.charAt(0)}
                       </span>
                     </div>
                     <div className="ml-4">
@@ -105,14 +192,17 @@ const UsersTab = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <div className="flex space-x-2">
-                    <button className="text-blue-600 hover:text-blue-900">
-                      <Edit2 className="h-5 w-5" />
+                    <button 
+                      onClick={() => setEditingUser(user)}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Edit
                     </button>
                     <button 
-                      className="text-red-600 hover:text-red-900"
                       onClick={() => handleDeleteUser(user.id)}
+                      className="text-red-600 hover:text-red-900"
                     >
-                      <Trash2 className="h-5 w-5" />
+                      Delete
                     </button>
                   </div>
                 </td>
@@ -127,14 +217,6 @@ const UsersTab = () => {
           <div className="text-sm text-gray-700">
             Showing {filteredUsers.length} of {users.length} users
           </div>
-          <div className="flex space-x-2">
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
-              Previous
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
-              Next
-            </button>
-          </div>
         </div>
       </div>
 
@@ -142,6 +224,8 @@ const UsersTab = () => {
         isOpen={showAddModal} 
         onClose={() => setShowAddModal(false)}
         onAdd={handleAddUser}
+        editingUser={editingUser}
+        onEdit={handleEditUser}
       />
     </div>
   );

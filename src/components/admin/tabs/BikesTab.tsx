@@ -1,42 +1,113 @@
-import React, { useState } from 'react';
-import { Search, Filter, PlusCircle, Edit2, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, PlusCircle } from 'lucide-react';
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import AddBikeModal from '../modals/AddBikeModal';
 
 const BikesTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [bikes, setBikes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingBike, setEditingBike] = useState<any>(null);
 
-  const mockBikes = [
-    {
-      id: 1,
-      name: 'Royal Enfield Classic 350',
-      type: 'Cruiser',
-      location: 'Bengaluru',
-      status: 'Available',
-      price: '₹799/day'
-    },
-    {
-      id: 2,
-      name: 'KTM Duke 390',
-      type: 'Sport',
-      location: 'Mysuru',
-      status: 'Rented',
-      price: '₹1199/day'
-    },
-    {
-      id: 3,
-      name: 'Bajaj Dominar 400',
-      type: 'Sports Tourer',
-      location: 'Mangaluru',
-      status: 'Maintenance',
-      price: '₹999/day'
+  const db = getFirestore();
+
+  useEffect(() => {
+    fetchBikes();
+  }, []);
+
+  const fetchBikes = async () => {
+    try {
+      const bikesCollection = collection(db, 'bikes');
+      const snapshot = await getDocs(bikesCollection);
+      const bikesList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setBikes(bikesList);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching bikes:', err);
+      setError('Failed to load bikes');
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleAddBike = async (bikeData: any) => {
+    try {
+      const bikeDoc = await addDoc(collection(db, 'bikes'), {
+        ...bikeData,
+        createdAt: new Date().toISOString()
+      });
+
+      setBikes(prev => [...prev, { id: bikeDoc.id, ...bikeData }]);
+      setShowAddModal(false);
+    } catch (err) {
+      console.error('Error adding bike:', err);
+      setError('Failed to add bike');
+    }
+  };
+
+  const handleEditBike = async (bikeId: string, updatedData: any) => {
+    try {
+      const bikeRef = doc(db, 'bikes', bikeId);
+      await updateDoc(bikeRef, updatedData);
+      
+      setBikes(prev => prev.map(bike => 
+        bike.id === bikeId ? { ...bike, ...updatedData } : bike
+      ));
+      
+      setEditingBike(null);
+      setShowAddModal(false);
+    } catch (err) {
+      console.error('Error updating bike:', err);
+      setError('Failed to update bike');
+    }
+  };
+
+  const handleDeleteBike = async (bikeId: string) => {
+    if (!window.confirm('Are you sure you want to delete this bike?')) return;
+
+    try {
+      await deleteDoc(doc(db, 'bikes', bikeId));
+      setBikes(prev => prev.filter(bike => bike.id !== bikeId));
+    } catch (err) {
+      console.error('Error deleting bike:', err);
+      setError('Failed to delete bike');
+    }
+  };
+
+  const filteredBikes = bikes.filter(bike => 
+    bike.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    bike.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    bike.location?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
+    return <div className="text-center py-8">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 text-red-600 p-4 rounded-lg">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-md">
       <div className="p-6 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
           <h2 className="text-xl font-semibold mb-4 sm:mb-0">Bikes Management</h2>
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+          <button 
+            onClick={() => {
+              setEditingBike(null);
+              setShowAddModal(true);
+            }}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
             <PlusCircle className="h-5 w-5 mr-2" />
             Add New Bike
           </button>
@@ -73,7 +144,7 @@ const BikesTab = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {mockBikes.map((bike) => (
+            {filteredBikes.map((bike) => (
               <tr key={bike.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{bike.name}</div>
@@ -94,15 +165,24 @@ const BikesTab = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{bike.price}</div>
+                  <div className="text-sm text-gray-900">₹{bike.price}/day</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <div className="flex space-x-2">
-                    <button className="text-blue-600 hover:text-blue-900">
-                      <Edit2 className="h-5 w-5" />
+                    <button 
+                      onClick={() => {
+                        setEditingBike(bike);
+                        setShowAddModal(true);
+                      }}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Edit
                     </button>
-                    <button className="text-red-600 hover:text-red-900">
-                      <Trash2 className="h-5 w-5" />
+                    <button 
+                      onClick={() => handleDeleteBike(bike.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Delete
                     </button>
                   </div>
                 </td>
@@ -115,18 +195,21 @@ const BikesTab = () => {
       <div className="px-6 py-4 border-t border-gray-200">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-700">
-            Showing 1 to 3 of 3 entries
-          </div>
-          <div className="flex space-x-2">
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
-              Previous
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
-              Next
-            </button>
+            Showing {filteredBikes.length} of {bikes.length} bikes
           </div>
         </div>
       </div>
+
+      <AddBikeModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingBike(null);
+        }}
+        onAdd={handleAddBike}
+        onEdit={handleEditBike}
+        editingBike={editingBike}
+      />
     </div>
   );
 };
