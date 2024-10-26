@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Lock, Phone } from 'lucide-react';
+import { X, User, Mail, Lock, Phone, AlertCircle } from 'lucide-react';
 
 type AddUserModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (user: any) => void;
+  onAdd: (user: any) => Promise<void>;
   editingUser?: any;
-  onEdit?: (id: string, user: any) => void;
+  onEdit?: (id: string, user: any) => Promise<void>;
+  error?: string;
 };
 
-const AddUserModal = ({ isOpen, onClose, onAdd, editingUser, onEdit }: AddUserModalProps) => {
+const AddUserModal = ({ isOpen, onClose, onAdd, editingUser, onEdit, error: propError }: AddUserModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -21,6 +22,7 @@ const AddUserModal = ({ isOpen, onClose, onAdd, editingUser, onEdit }: AddUserMo
   });
 
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (editingUser) {
@@ -40,7 +42,14 @@ const AddUserModal = ({ isOpen, onClose, onAdd, editingUser, onEdit }: AddUserMo
         status: 'Active'
       });
     }
+    setError('');
   }, [editingUser]);
+
+  useEffect(() => {
+    if (propError) {
+      setError(propError);
+    }
+  }, [propError]);
 
   if (!isOpen) return null;
 
@@ -52,39 +61,62 @@ const AddUserModal = ({ isOpen, onClose, onAdd, editingUser, onEdit }: AddUserMo
     setError('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError('Name is required');
+      return false;
+    }
+
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+
+    if (!editingUser) {
+      if (!formData.password) {
+        setError('Password is required');
+        return false;
+      }
+
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        return false;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!editingUser && formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    if (!validateForm()) {
       return;
     }
 
-    if (!formData.name || !formData.email || (!editingUser && !formData.password)) {
-      setError('Please fill in all required fields');
-      return;
+    setLoading(true);
+    try {
+      if (editingUser && onEdit) {
+        await onEdit(editingUser.id, {
+          name: formData.name,
+          phone: formData.phone,
+          role: formData.role,
+          status: formData.status
+        });
+      } else {
+        await onAdd(formData);
+      }
+      onClose();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-
-    if (editingUser && onEdit) {
-      onEdit(editingUser.id, {
-        name: formData.name,
-        phone: formData.phone,
-        role: formData.role,
-        status: formData.status
-      });
-    } else {
-      onAdd(formData);
-    }
-
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      phone: '',
-      role: 'User',
-      status: 'Active'
-    });
   };
 
   return (
@@ -103,8 +135,9 @@ const AddUserModal = ({ isOpen, onClose, onAdd, editingUser, onEdit }: AddUserMo
         </h2>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-            {error}
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            <span>{error}</span>
           </div>
         )}
 
@@ -238,14 +271,16 @@ const AddUserModal = ({ isOpen, onClose, onAdd, editingUser, onEdit }: AddUserMo
               type="button"
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              disabled={loading}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              disabled={loading}
             >
-              {editingUser ? 'Update User' : 'Add User'}
+              {loading ? 'Processing...' : (editingUser ? 'Update User' : 'Add User')}
             </button>
           </div>
         </form>

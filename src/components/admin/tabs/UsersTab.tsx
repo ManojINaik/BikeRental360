@@ -3,7 +3,7 @@ import { Search, Filter, UserPlus } from 'lucide-react';
 import AddUserModal from '../modals/AddUserModal';
 import { auth } from '../../../lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } from 'firebase/firestore';
 
 const UsersTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +38,15 @@ const UsersTab = () => {
 
   const handleAddUser = async (userData: any) => {
     try {
+      // Check if email already exists in Firestore
+      const usersRef = collection(db, 'users');
+      const emailQuery = query(usersRef, where('email', '==', userData.email));
+      const emailSnapshot = await getDocs(emailQuery);
+
+      if (!emailSnapshot.empty) {
+        throw new Error('A user with this email already exists');
+      }
+
       // Create auth user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -63,9 +72,20 @@ const UsersTab = () => {
 
       setUsers(prev => [...prev, { id: userDoc.id, ...userData }]);
       setShowAddModal(false);
-    } catch (err) {
-      console.error('Error adding user:', err);
-      setError('Failed to add user');
+      setError('');
+    } catch (err: any) {
+      let errorMessage = 'Failed to add user';
+      
+      if (err.code === 'auth/email-already-in-use' || err.message === 'A user with this email already exists') {
+        errorMessage = 'This email address is already registered. Please use a different email.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'Password should be at least 6 characters long.';
+      }
+      
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
@@ -79,9 +99,11 @@ const UsersTab = () => {
       ));
       
       setEditingUser(null);
+      setError('');
     } catch (err) {
-      console.error('Error updating user:', err);
-      setError('Failed to update user');
+      const errorMessage = 'Failed to update user';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
@@ -91,9 +113,11 @@ const UsersTab = () => {
     try {
       await deleteDoc(doc(db, 'users', userId));
       setUsers(prev => prev.filter(user => user.id !== userId));
+      setError('');
     } catch (err) {
-      console.error('Error deleting user:', err);
-      setError('Failed to delete user');
+      const errorMessage = 'Failed to delete user';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
@@ -105,14 +129,6 @@ const UsersTab = () => {
 
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 text-red-600 p-4 rounded-lg">
-        {error}
-      </div>
-    );
   }
 
   return (
@@ -129,6 +145,12 @@ const UsersTab = () => {
           </button>
         </div>
         
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+            {error}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -222,10 +244,14 @@ const UsersTab = () => {
 
       <AddUserModal 
         isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          setError('');
+        }}
         onAdd={handleAddUser}
         editingUser={editingUser}
         onEdit={handleEditUser}
+        error={error}
       />
     </div>
   );

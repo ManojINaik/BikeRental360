@@ -11,7 +11,8 @@ import {
   getRedirectResult,
   GithubAuthProvider,
   browserLocalPersistence,
-  setPersistence
+  setPersistence,
+  AuthError
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
@@ -34,6 +35,30 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+const handleAuthError = (error: AuthError): string => {
+  switch (error.code) {
+    case 'auth/email-already-in-use':
+      return 'This email address is already registered. Please use a different email or sign in.';
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    case 'auth/operation-not-allowed':
+      return 'This sign-in method is not enabled. Please contact support.';
+    case 'auth/weak-password':
+      return 'Password should be at least 6 characters long.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled. Please contact support.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+      return 'Invalid email or password.';
+    case 'auth/popup-blocked':
+      return 'Pop-up was blocked by your browser. Please allow pop-ups or try another sign-in method.';
+    case 'auth/popup-closed-by-user':
+      return 'Sign-in window was closed. Please try again.';
+    default:
+      return 'An error occurred during authentication. Please try again.';
+  }
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -72,41 +97,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     if (!auth) throw new Error('Firebase auth not initialized');
-    await setPersistence(auth, browserLocalPersistence);
-    const result = await signInWithEmailAndPassword(auth, email, password);
-    setIsAdmin(result.user.email === 'naik97059@gmail.com');
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      setIsAdmin(result.user.email === 'naik97059@gmail.com');
+    } catch (error) {
+      throw new Error(handleAuthError(error as AuthError));
+    }
   };
 
   const signUp = async (email: string, password: string) => {
     if (!auth) throw new Error('Firebase auth not initialized');
-    await setPersistence(auth, browserLocalPersistence);
-    const result = await createUserWithEmailAndPassword(auth, email, password);
-    setIsAdmin(result.user.email === 'naik97059@gmail.com');
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      setIsAdmin(result.user.email === 'naik97059@gmail.com');
+    } catch (error) {
+      throw new Error(handleAuthError(error as AuthError));
+    }
   };
 
   const logout = async () => {
     if (!auth) throw new Error('Firebase auth not initialized');
-    await signOut(auth);
-    setIsAdmin(false);
+    try {
+      await signOut(auth);
+      setIsAdmin(false);
+    } catch (error) {
+      throw new Error(handleAuthError(error as AuthError));
+    }
   };
 
   const signInWithGoogle = async (useRedirect = false) => {
     if (!auth) throw new Error('Firebase auth not initialized');
     const provider = new GoogleAuthProvider();
-    await setPersistence(auth, browserLocalPersistence);
-    
     try {
+      await setPersistence(auth, browserLocalPersistence);
+      
       if (useRedirect) {
         await signInWithRedirect(auth, provider);
       } else {
         const result = await signInWithPopup(auth, provider);
         setIsAdmin(result.user.email === 'naik97059@gmail.com');
       }
-    } catch (error: any) {
-      if (error.code === 'auth/popup-blocked') {
+    } catch (error) {
+      if ((error as AuthError).code === 'auth/popup-blocked') {
         await signInWithRedirect(auth, provider);
       } else {
-        throw error;
+        throw new Error(handleAuthError(error as AuthError));
       }
     }
   };
@@ -114,20 +151,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithGithub = async (useRedirect = false) => {
     if (!auth) throw new Error('Firebase auth not initialized');
     const provider = new GithubAuthProvider();
-    await setPersistence(auth, browserLocalPersistence);
-    
     try {
+      await setPersistence(auth, browserLocalPersistence);
+      
       if (useRedirect) {
         await signInWithRedirect(auth, provider);
       } else {
         const result = await signInWithPopup(auth, provider);
         setIsAdmin(result.user.email === 'naik97059@gmail.com');
       }
-    } catch (error: any) {
-      if (error.code === 'auth/popup-blocked') {
+    } catch (error) {
+      if ((error as AuthError).code === 'auth/popup-blocked') {
         await signInWithRedirect(auth, provider);
       } else {
-        throw error;
+        throw new Error(handleAuthError(error as AuthError));
       }
     }
   };
