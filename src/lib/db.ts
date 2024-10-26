@@ -1,38 +1,40 @@
-import mysql from 'mysql2/promise';
+import mongoose from 'mongoose';
 
-const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: 'your_password',
-  database: 'bikerental360',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+const MONGODB_URI = 'mongodb://localhost:27017/bikerental360';
 
-export async function query(sql: string, params: any[] = []) {
-  try {
-    const [results] = await pool.execute(sql, params);
-    return results;
-  } catch (error) {
-    console.error('Database query error:', error);
-    throw error;
-  }
+if (!MONGODB_URI) {
+  throw new Error('Please define the MONGODB_URI environment variable');
 }
 
-export async function transaction<T>(callback: (connection: mysql.Connection) => Promise<T>): Promise<T> {
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
-    const result = await callback(connection);
-    await connection.commit();
-    return result;
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
 }
 
-export default pool;
+async function connectDB() {
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+    };
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      return mongoose;
+    });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
+  return cached.conn;
+}
+
+export default connectDB;

@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, PlusCircle } from 'lucide-react';
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { getAllBikes, deleteBike } from '../../../services/bikeService';
+import { Bike } from '../../../types/bike';
 import AddBikeModal from '../modals/AddBikeModal';
 
 const BikesTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [bikes, setBikes] = useState<any[]>([]);
+  const [bikes, setBikes] = useState<Bike[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingBike, setEditingBike] = useState<any>(null);
-
-  const db = getFirestore();
+  const [editingBike, setEditingBike] = useState<Bike | null>(null);
 
   useEffect(() => {
     fetchBikes();
@@ -19,12 +18,7 @@ const BikesTab = () => {
 
   const fetchBikes = async () => {
     try {
-      const bikesCollection = collection(db, 'bikes');
-      const snapshot = await getDocs(bikesCollection);
-      const bikesList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const bikesList = await getAllBikes();
       setBikes(bikesList);
       setLoading(false);
     } catch (err) {
@@ -34,59 +28,16 @@ const BikesTab = () => {
     }
   };
 
-  const handleAddBike = async (bikeData: any) => {
-    try {
-      const bikesCollection = collection(db, 'bikes');
-      const newBike = {
-        ...bikeData,
-        createdAt: new Date().toISOString(),
-        rating: 0,
-        reviews: 0,
-        status: 'Available'
-      };
-
-      await addDoc(bikesCollection, newBike);
-      await fetchBikes();
-      setShowAddModal(false);
-      setError('');
-    } catch (err) {
-      console.error('Error adding bike:', err);
-      setError('Failed to add bike');
-      throw new Error('Failed to add bike');
-    }
-  };
-
-  const handleEditBike = async (bikeId: string, updatedData: any) => {
-    try {
-      const bikeRef = doc(db, 'bikes', bikeId);
-      await updateDoc(bikeRef, {
-        ...updatedData,
-        updatedAt: new Date().toISOString()
-      });
-      
-      await fetchBikes();
-      setEditingBike(null);
-      setShowAddModal(false);
-      setError('');
-    } catch (err) {
-      console.error('Error updating bike:', err);
-      setError('Failed to update bike');
-      throw new Error('Failed to update bike');
-    }
-  };
-
   const handleDeleteBike = async (bikeId: string) => {
     if (!window.confirm('Are you sure you want to delete this bike?')) return;
 
     try {
-      const bikeRef = doc(db, 'bikes', bikeId);
-      await deleteDoc(bikeRef);
+      await deleteBike(bikeId);
       await fetchBikes();
       setError('');
     } catch (err) {
       console.error('Error deleting bike:', err);
       setError('Failed to delete bike');
-      throw new Error('Failed to delete bike');
     }
   };
 
@@ -176,8 +127,8 @@ const BikesTab = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    bike.status === 'Available' ? 'bg-green-100 text-green-800' :
-                    bike.status === 'Rented' ? 'bg-blue-100 text-blue-800' :
+                    bike.status === 'available' ? 'bg-green-100 text-green-800' :
+                    bike.status === 'rented' ? 'bg-blue-100 text-blue-800' :
                     'bg-yellow-100 text-yellow-800'
                   }`}>
                     {bike.status}
@@ -226,8 +177,12 @@ const BikesTab = () => {
           setEditingBike(null);
           setError('');
         }}
-        onAdd={handleAddBike}
-        onEdit={handleEditBike}
+        onAdd={async (bikeData) => {
+          await fetchBikes();
+        }}
+        onEdit={async (id, bikeData) => {
+          await fetchBikes();
+        }}
         editingBike={editingBike}
       />
     </div>
