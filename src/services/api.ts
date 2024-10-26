@@ -1,48 +1,85 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { User } from '../contexts/AuthContext';
 
-interface ApiError extends Error {
-  status?: number;
-  data?: any;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+interface LoginResponse {
+  user: User;
+  token: string;
 }
 
-export const api = {
-  async request(endpoint: string, options: RequestInit = {}) {
-    try {
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-        credentials: 'include',
-      });
+class ApiService {
+  private token: string | null = null;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        const error = new Error(data.message || 'An error occurred') as ApiError;
-        error.status = response.status;
-        error.data = data;
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('An unexpected error occurred');
-    }
-  },
-
-  async post(endpoint: string, data: any) {
-    return this.request(endpoint, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
-
-  async get(endpoint: string) {
-    return this.request(endpoint);
+  setToken(token: string) {
+    this.token = token;
+    localStorage.setItem('token', token);
   }
-};
+
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem('token');
+  }
+
+  getToken(): string | null {
+    if (!this.token) {
+      this.token = localStorage.getItem('token');
+    }
+    return this.token;
+  }
+
+  private async request(endpoint: string, options: RequestInit = {}) {
+    const token = this.getToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    };
+
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'An error occurred');
+    }
+
+    return data;
+  }
+
+  async login(email: string, password: string): Promise<LoginResponse> {
+    const data = await this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    this.setToken(data.token);
+    return data;
+  }
+
+  async signup(name: string, email: string, password: string, phone?: string): Promise<LoginResponse> {
+    const data = await this.request('/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password, phone }),
+    });
+    this.setToken(data.token);
+    return data;
+  }
+
+  async getCurrentUser(): Promise<User | null> {
+    try {
+      const { user } = await this.request('/auth/me');
+      return user;
+    } catch (error) {
+      this.clearToken();
+      return null;
+    }
+  }
+
+  async logout(): Promise<void> {
+    this.clearToken();
+  }
+}
+
+export const api = new ApiService();

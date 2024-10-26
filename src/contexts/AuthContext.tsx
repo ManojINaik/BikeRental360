@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService, User } from '../services/auth';
+import { api } from '../services/api';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  memberSince: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -19,39 +27,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const currentUser = await authService.getCurrentUser();
+        const currentUser = await api.getCurrentUser();
         setUser(currentUser);
       } catch (error) {
         console.error('Auth initialization error:', error);
-        authService.clearUser();
       } finally {
         setLoading(false);
-        setInitialized(true);
       }
     };
 
     initAuth();
   }, []);
 
-  const handleAuthError = (error: unknown) => {
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred';
-    setError(message);
-    throw error;
-  };
-
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await authService.login({ email, password });
-      setUser(response.user);
+      const { user } = await api.login(email, password);
+      setUser(user);
     } catch (error) {
-      handleAuthError(error);
+      setError(error instanceof Error ? error.message : 'Login failed');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -61,10 +61,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const response = await authService.signup({ name, email, password, phone });
-      setUser(response.user);
+      const { user } = await api.signup(name, email, password, phone);
+      setUser(user);
     } catch (error) {
-      handleAuthError(error);
+      setError(error instanceof Error ? error.message : 'Signup failed');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -74,10 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const response = await authService.loginWithProvider('google');
-      setUser(response.user);
+      throw new Error('Google login not implemented');
     } catch (error) {
-      handleAuthError(error);
+      setError(error instanceof Error ? error.message : 'Google login failed');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -87,10 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const response = await authService.loginWithProvider('github');
-      setUser(response.user);
+      throw new Error('GitHub login not implemented');
     } catch (error) {
-      handleAuthError(error);
+      setError(error instanceof Error ? error.message : 'GitHub login failed');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -100,10 +101,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      await authService.logout();
+      await api.logout();
       setUser(null);
     } catch (error) {
-      handleAuthError(error);
+      setError(error instanceof Error ? error.message : 'Logout failed');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -111,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearError = () => setError(null);
 
-  if (!initialized) {
+  if (loading) {
     return null;
   }
 

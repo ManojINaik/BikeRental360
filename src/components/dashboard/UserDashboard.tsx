@@ -1,7 +1,10 @@
 import React from 'react';
 import { Calendar, Clock, MapPin, Settings, Bell, CreditCard, Bike, History } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const UserDashboard = () => {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -11,13 +14,13 @@ const UserDashboard = () => {
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center space-x-4 mb-6">
                 <img
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                  src={user?.avatar}
                   alt="Profile"
-                  className="h-12 w-12 rounded-full"
+                  className="h-12 w-12 rounded-full object-cover"
                 />
                 <div>
-                  <h3 className="font-semibold text-gray-900">John Doe</h3>
-                  <p className="text-sm text-gray-500">Member since 2024</p>
+                  <h3 className="font-semibold text-gray-900">{user?.name}</h3>
+                  <p className="text-sm text-gray-500">Member since {user?.memberSince}</p>
                 </div>
               </div>
 
