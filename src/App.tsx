@@ -6,6 +6,7 @@ import BikeFilters from './components/bikes/BikeFilters';
 import BikeGrid from './components/bikes/BikeGrid';
 import AuthModal from './components/auth/AuthModal';
 import UserDashboard from './components/dashboard/UserDashboard';
+import AdminDashboard from './components/admin/AdminDashboard';
 import HowItWorks from './components/HowItWorks';
 import BecomeOwner from './components/BecomeOwner';
 import { useAuth } from './contexts/AuthContext';
@@ -14,6 +15,9 @@ function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const { currentUser, logout } = useAuth();
+
+  // Mock admin check - replace with actual admin check logic
+  const isAdmin = currentUser?.email === 'admin@example.com';
 
   const handleLogout = async () => {
     try {
@@ -28,6 +32,12 @@ function App() {
     setShowDashboard(!showDashboard);
   };
 
+  const handleBookNowClick = () => {
+    if (!currentUser) {
+      setShowAuthModal(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar 
@@ -35,14 +45,19 @@ function App() {
         isLoggedIn={!!currentUser}
         onLogout={handleLogout}
         onDashboardClick={handleDashboardToggle}
+        isAdmin={isAdmin}
       />
       
       {showDashboard && currentUser ? (
-        <UserDashboard onClose={() => setShowDashboard(false)} />
+        isAdmin ? (
+          <AdminDashboard onClose={() => setShowDashboard(false)} />
+        ) : (
+          <UserDashboard onClose={() => setShowDashboard(false)} />
+        )
       ) : (
         <>
           <Hero />
-          <FeaturedBikes onBookNowClick={() => !currentUser && setShowAuthModal(true)} />
+          <FeaturedBikes onBookNowClick={handleBookNowClick} />
           
           <section id="explore" className="py-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -52,7 +67,7 @@ function App() {
                   <BikeFilters />
                 </div>
                 <div className="lg:col-span-3">
-                  <BikeGrid onBookNowClick={() => !currentUser && setShowAuthModal(true)} />
+                  <BikeGrid onBookNowClick={handleBookNowClick} />
                 </div>
               </div>
             </div>
@@ -66,7 +81,7 @@ function App() {
 
           <section id="become-owner" className="py-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <BecomeOwner onGetStarted={() => !currentUser && setShowAuthModal(true)} />
+              <BecomeOwner onGetStarted={handleBookNowClick} />
             </div>
           </section>
         </>

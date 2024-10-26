@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Star, MapPin, Calendar } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 type BikeGridProps = {
   onBookNowClick: () => void;
@@ -50,10 +51,23 @@ const bikes = [
 
 const BikeGrid = ({ onBookNowClick }: BikeGridProps) => {
   const [isVisible, setIsVisible] = useState(false);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  const handleBookNow = () => {
+    if (!currentUser) {
+      onBookNowClick();
+    } else {
+      // If user is logged in, scroll to booking form
+      const bookingForm = document.getElementById('booking-form');
+      if (bookingForm) {
+        bookingForm.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
 
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
@@ -90,7 +104,7 @@ const BikeGrid = ({ onBookNowClick }: BikeGridProps) => {
                 <span className="text-gray-500">/day</span>
               </div>
               <button 
-                onClick={onBookNowClick}
+                onClick={handleBookNow}
                 className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition duration-300"
               >
                 Book Now

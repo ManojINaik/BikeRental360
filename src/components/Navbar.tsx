@@ -6,15 +6,16 @@ type NavbarProps = {
   isLoggedIn: boolean;
   onLogout: () => void;
   onDashboardClick: () => void;
+  isAdmin?: boolean;
 };
 
-const Navbar = ({ onSignInClick, isLoggedIn, onLogout, onDashboardClick }: NavbarProps) => {
+const Navbar = ({ onSignInClick, isLoggedIn, onLogout, onDashboardClick, isAdmin = false }: NavbarProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      const offset = 80; // Height of the fixed navbar plus some padding
+      const offset = 80;
       const elementPosition = element.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - offset;
       
@@ -64,7 +65,7 @@ const Navbar = ({ onSignInClick, isLoggedIn, onLogout, onDashboardClick }: Navba
                   className="flex items-center space-x-2 text-gray-700 hover:text-blue-600"
                 >
                   <User className="h-5 w-5" />
-                  <span>Dashboard</span>
+                  <span>{isAdmin ? 'Admin Dashboard' : 'Dashboard'}</span>
                 </button>
                 <button 
                   onClick={onLogout}
@@ -124,7 +125,7 @@ const Navbar = ({ onSignInClick, isLoggedIn, onLogout, onDashboardClick }: Navba
                   className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-blue-600 w-full text-left"
                 >
                   <User className="h-5 w-5" />
-                  <span>Dashboard</span>
+                  <span>{isAdmin ? 'Admin Dashboard' : 'Dashboard'}</span>
                 </button>
                 <button 
                   onClick={onLogout}
