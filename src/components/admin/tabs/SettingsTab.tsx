@@ -56,7 +56,6 @@ const SettingsTab = () => {
 
         <div className="space-y-4">
           <label className="flex items-center justify-between">
-            <span className="text-gray-<boltAction type="file" filePath="src/components/admin/tabs/SettingsTab.tsx">
             <span className="text-gray-700">Email notifications for new bookings</span>
             <input type="checkbox" defaultChecked className="rounded text-blue-600 focus:ring-blue-500" />
           </label>

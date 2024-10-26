@@ -23,6 +23,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   signInWithGoogle: (useRedirect?: boolean) => Promise<void>;
   signInWithGithub: (useRedirect?: boolean) => Promise<void>;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,6 +39,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!auth) {
@@ -50,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const result = await getRedirectResult(auth);
         if (result) {
           setCurrentUser(result.user);
+          setIsAdmin(result.user.email === 'naik97059@gmail.com');
         }
       } catch (error) {
         console.error('Redirect sign-in error:', error);
@@ -60,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
+      setIsAdmin(user?.email === 'naik97059@gmail.com');
       setLoading(false);
     });
 
@@ -69,18 +73,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     if (!auth) throw new Error('Firebase auth not initialized');
     await setPersistence(auth, browserLocalPersistence);
-    await signInWithEmailAndPassword(auth, email, password);
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    setIsAdmin(result.user.email === 'naik97059@gmail.com');
   };
 
   const signUp = async (email: string, password: string) => {
     if (!auth) throw new Error('Firebase auth not initialized');
     await setPersistence(auth, browserLocalPersistence);
-    await createUserWithEmailAndPassword(auth, email, password);
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    setIsAdmin(result.user.email === 'naik97059@gmail.com');
   };
 
   const logout = async () => {
     if (!auth) throw new Error('Firebase auth not initialized');
     await signOut(auth);
+    setIsAdmin(false);
   };
 
   const signInWithGoogle = async (useRedirect = false) => {
@@ -92,11 +99,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (useRedirect) {
         await signInWithRedirect(auth, provider);
       } else {
-        await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        setIsAdmin(result.user.email === 'naik97059@gmail.com');
       }
     } catch (error: any) {
       if (error.code === 'auth/popup-blocked') {
-        // If popup is blocked, fall back to redirect
         await signInWithRedirect(auth, provider);
       } else {
         throw error;
@@ -113,11 +120,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (useRedirect) {
         await signInWithRedirect(auth, provider);
       } else {
-        await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        setIsAdmin(result.user.email === 'naik97059@gmail.com');
       }
     } catch (error: any) {
       if (error.code === 'auth/popup-blocked') {
-        // If popup is blocked, fall back to redirect
         await signInWithRedirect(auth, provider);
       } else {
         throw error;
@@ -132,7 +139,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     logout,
     signInWithGoogle,
-    signInWithGithub
+    signInWithGithub,
+    isAdmin
   };
 
   return (

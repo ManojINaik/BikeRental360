@@ -1,13 +1,14 @@
-import { initializeApp } from "firebase/app";
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  browserLocalPersistence, 
+import { initializeApp } from 'firebase/app';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  browserLocalPersistence,
   setPersistence,
-  GithubAuthProvider
-} from "firebase/auth";
+  GithubAuthProvider,
+} from 'firebase/auth';
 
 const firebaseConfig = {
+
   apiKey: "secret",
   authDomain: "bikerental360.firebaseapp.com",
   projectId: "bikerental360",
@@ -15,6 +16,7 @@ const firebaseConfig = {
   messagingSenderId: "240755382954",
   appId: "1:240755382954:web:c7c0984b44e6d544618ed3",
   measurementId: "G-JVRFVGP9F4"
+
 };
 
 // Initialize Firebase
@@ -23,7 +25,7 @@ const auth = getAuth(app);
 
 // Set persistence to local
 setPersistence(auth, browserLocalPersistence).catch((error) => {
-  console.error("Error setting auth persistence:", error);
+  console.error('Error setting auth persistence:', error);
 });
 
 // Initialize Google Auth Provider
@@ -31,14 +33,14 @@ const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
 googleProvider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: 'select_account',
 });
 
 // Initialize GitHub Auth Provider
 const githubProvider = new GithubAuthProvider();
 githubProvider.addScope('user');
 githubProvider.setCustomParameters({
-  prompt: 'consent'
+  prompt: 'consent',
 });
 
 export { auth, googleProvider, githubProvider };

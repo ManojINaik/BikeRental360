@@ -14,10 +14,7 @@ import { useAuth } from './contexts/AuthContext';
 function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
-  const { currentUser, logout } = useAuth();
-
-  // Mock admin check - replace with actual admin check logic
-  const isAdmin = currentUser?.email === 'admin@example.com';
+  const { currentUser, logout, isAdmin } = useAuth();
 
   const handleLogout = async () => {
     try {
