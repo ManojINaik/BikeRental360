@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
+import { createBike, updateBike } from '../../../services/bikeService';
 
 type AddBikeModalProps = {
   isOpen: boolean;
@@ -17,7 +18,8 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
     price: '',
     description: '',
     features: '',
-    imageUrl: ''
+    imageUrl: '',
+    status: 'available' as const
   });
 
   const [error, setError] = useState('');
@@ -29,10 +31,11 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
         name: editingBike.name || '',
         type: editingBike.type || 'Cruiser',
         location: editingBike.location || '',
-        price: editingBike.price || '',
+        price: editingBike.price?.toString() || '',
         description: editingBike.description || '',
         features: editingBike.features || '',
-        imageUrl: editingBike.imageUrl || ''
+        imageUrl: editingBike.imageUrl || '',
+        status: editingBike.status || 'available'
       });
     } else {
       setFormData({
@@ -42,11 +45,12 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
         price: '',
         description: '',
         features: '',
-        imageUrl: ''
+        imageUrl: '',
+        status: 'available'
       });
     }
     setError('');
-  }, [editingBike]);
+  }, [editingBike, isOpen]);
 
   if (!isOpen) return null;
 
@@ -86,18 +90,24 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
     try {
       const bikeData = {
         ...formData,
-        price: Number(formData.price)
+        price: Number(formData.price),
+        features: formData.features.split(',').map(f => f.trim()).filter(Boolean)
       };
 
-      if (editingBike && onEdit) {
-        await onEdit(editingBike.id, bikeData);
+      if (editingBike?.id) {
+        await updateBike(editingBike.id, bikeData);
+        if (onEdit) {
+          await onEdit(editingBike.id, bikeData);
+        }
       } else {
-        await onAdd(bikeData);
+        const newBikeId = await createBike(bikeData);
+        await onAdd({ id: newBikeId, ...bikeData });
       }
+      
+      setLoading(false);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to save bike');
-    } finally {
       setLoading(false);
     }
   };
@@ -107,7 +117,7 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black opacity-50" onClick={onClose}></div>
-      <div className="relative bg-white rounded-lg w-full max-w-md p-8">
+      <div className="relative bg-white rounded-lg w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
@@ -242,7 +252,7 @@ const AddBikeModal = ({ isOpen, onClose, onAdd, onEdit, editingBike }: AddBikeMo
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? 'Saving...' : (editingBike ? 'Update Bike' : 'Add Bike')}

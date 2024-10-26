@@ -6,6 +6,7 @@ import {
   setPersistence,
   GithubAuthProvider,
 } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyBYHpb8Q6dJLyt3MIJhDYEMDqTSIe74Tfg',
@@ -20,6 +21,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 // Set persistence to local
 setPersistence(auth, browserLocalPersistence).catch((error) => {
@@ -41,5 +43,5 @@ githubProvider.setCustomParameters({
   prompt: 'consent',
 });
 
-export { auth, googleProvider, githubProvider };
+export { auth, db, googleProvider, githubProvider };
 export default app;

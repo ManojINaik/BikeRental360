@@ -1,4 +1,5 @@
-import { query } from '../lib/db';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export interface Bike {
   id: string;
@@ -7,22 +8,28 @@ export interface Bike {
   location: string;
   price: number;
   description?: string;
-  features?: string;
-  image_url?: string;
+  features?: string[];
+  imageUrl?: string;
   status: 'available' | 'rented' | 'maintenance';
   rating: number;
-  reviews_count: number;
+  reviewsCount: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
+const BIKES_COLLECTION = 'bikes';
+
 export async function getAllBikes(): Promise<Bike[]> {
-  return query(
-    'SELECT * FROM bikes WHERE status = "available" ORDER BY created_at DESC'
-  ) as Promise<Bike[]>;
+  const bikesRef = collection(db, BIKES_COLLECTION);
+  const q = query(bikesRef, where('status', '==', 'available'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bike));
 }
 
 export async function getBikeById(id: string): Promise<Bike | null> {
-  const bikes = await query('SELECT * FROM bikes WHERE id = ?', [id]) as Bike[];
-  return bikes[0] || null;
+  const bikeRef = doc(db, BIKES_COLLECTION, id);
+  const snapshot = await getDocs(query(collection(db, BIKES_COLLECTION), where('__name__', '==', id)));
+  return snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Bike;
 }
 
 export async function searchBikes(params: {
@@ -31,53 +38,64 @@ export async function searchBikes(params: {
   minPrice?: number;
   maxPrice?: number;
 }): Promise<Bike[]> {
-  let sql = 'SELECT * FROM bikes WHERE status = "available"';
-  const values: any[] = [];
+  let q = query(collection(db, BIKES_COLLECTION), where('status', '==', 'available'));
 
   if (params.type) {
-    sql += ' AND type = ?';
-    values.push(params.type);
+    q = query(q, where('type', '==', params.type));
   }
 
   if (params.location) {
-    sql += ' AND location LIKE ?';
-    values.push(`%${params.location}%`);
+    q = query(q, where('location', '==', params.location));
   }
+
+  const snapshot = await getDocs(q);
+  let bikes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bike));
 
   if (params.minPrice !== undefined) {
-    sql += ' AND price >= ?';
-    values.push(params.minPrice);
+    bikes = bikes.filter(bike => bike.price >= params.minPrice!);
   }
-
   if (params.maxPrice !== undefined) {
-    sql += ' AND price <= ?';
-    values.push(params.maxPrice);
+    bikes = bikes.filter(bike => bike.price <= params.maxPrice!);
   }
 
-  sql += ' ORDER BY created_at DESC';
-
-  return query(sql, values) as Promise<Bike[]>;
+  return bikes;
 }
 
-export async function createBike(bike: Omit<Bike, 'id' | 'rating' | 'reviews_count'>): Promise<string> {
-  const id = crypto.randomUUID();
-  await query(
-    `INSERT INTO bikes (id, name, type, location, price, description, features, image_url, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, bike.name, bike.type, bike.location, bike.price, bike.description, bike.features, bike.image_url, bike.status]
-  );
-  return id;
+export async function createBike(bike: Omit<Bike, 'id' | 'rating' | 'reviewsCount'>): Promise<string> {
+  try {
+    const docRef = await addDoc(collection(db, BIKES_COLLECTION), {
+      ...bike,
+      rating: 0,
+      reviewsCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    return docRef.id;
+  } catch (error: any) {
+    console.error('Error creating bike:', error);
+    throw new Error(error.message || 'Failed to create bike');
+  }
 }
 
 export async function updateBike(id: string, bike: Partial<Bike>): Promise<void> {
-  const fields = Object.keys(bike)
-    .map(key => `${key} = ?`)
-    .join(', ');
-  const values = [...Object.values(bike), id];
-
-  await query(`UPDATE bikes SET ${fields} WHERE id = ?`, values);
+  try {
+    const bikeRef = doc(db, BIKES_COLLECTION, id);
+    await updateDoc(bikeRef, {
+      ...bike,
+      updatedAt: new Date()
+    });
+  } catch (error: any) {
+    console.error('Error updating bike:', error);
+    throw new Error(error.message || 'Failed to update bike');
+  }
 }
 
 export async function deleteBike(id: string): Promise<void> {
-  await query('DELETE FROM bikes WHERE id = ?', [id]);
+  try {
+    const bikeRef = doc(db, BIKES_COLLECTION, id);
+    await deleteDoc(bikeRef);
+  } catch (error: any) {
+    console.error('Error deleting bike:', error);
+    throw new Error(error.message || 'Failed to delete bike');
+  }
 }
