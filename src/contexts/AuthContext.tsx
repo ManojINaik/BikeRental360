@@ -1,145 +1,188 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '../services/api';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  memberSince: string;
-}
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { 
+  User,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  GithubAuthProvider,
+  browserLocalPersistence,
+  setPersistence,
+  AuthError
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 interface AuthContextType {
-  user: User | null;
+  currentUser: User | null;
   loading: boolean;
-  error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, phone?: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
-  loginWithGithub: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  clearError: () => void;
+  signInWithGoogle: (useRedirect?: boolean) => Promise<void>;
+  signInWithGithub: (useRedirect?: boolean) => Promise<void>;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+const handleAuthError = (error: AuthError): string => {
+  switch (error.code) {
+    case 'auth/email-already-in-use':
+      return 'This email address is already registered. Please use a different email or sign in.';
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    case 'auth/operation-not-allowed':
+      return 'This sign-in method is not enabled. Please contact support.';
+    case 'auth/weak-password':
+      return 'Password should be at least 6 characters long.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled. Please contact support.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+      return 'Invalid email or password.';
+    case 'auth/popup-blocked':
+      return 'Pop-up was blocked by your browser. Please allow pop-ups or try another sign-in method.';
+    case 'auth/popup-closed-by-user':
+      return 'Sign-in window was closed. Please try again.';
+    default:
+      return 'An error occurred during authentication. Please try again.';
+  }
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const initAuth = async () => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
+    const handleRedirectResult = async () => {
       try {
-        const currentUser = await api.getCurrentUser();
-        setUser(currentUser);
+        const result = await getRedirectResult(auth);
+        if (result) {
+          setCurrentUser(result.user);
+          setIsAdmin(result.user.email === 'naik97059@gmail.com');
+        }
       } catch (error) {
-        console.error('Auth initialization error:', error);
-      } finally {
-        setLoading(false);
+        console.error('Redirect sign-in error:', error);
       }
     };
 
-    initAuth();
+    handleRedirectResult();
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setIsAdmin(user?.email === 'naik97059@gmail.com');
+      setLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string) => {
+    if (!auth) throw new Error('Firebase auth not initialized');
     try {
-      setLoading(true);
-      setError(null);
-      const { user } = await api.login(email, password);
-      setUser(user);
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      setIsAdmin(result.user.email === 'naik97059@gmail.com');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Login failed');
-      throw error;
-    } finally {
-      setLoading(false);
+      throw new Error(handleAuthError(error as AuthError));
     }
   };
 
-  const signup = async (name: string, email: string, password: string, phone?: string) => {
+  const signUp = async (email: string, password: string) => {
+    if (!auth) throw new Error('Firebase auth not initialized');
     try {
-      setLoading(true);
-      setError(null);
-      const { user } = await api.signup(name, email, password, phone);
-      setUser(user);
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      setIsAdmin(result.user.email === 'naik97059@gmail.com');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Signup failed');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loginWithGoogle = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      throw new Error('Google login not implemented');
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Google login failed');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loginWithGithub = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      throw new Error('GitHub login not implemented');
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'GitHub login failed');
-      throw error;
-    } finally {
-      setLoading(false);
+      throw new Error(handleAuthError(error as AuthError));
     }
   };
 
   const logout = async () => {
+    if (!auth) throw new Error('Firebase auth not initialized');
     try {
-      setLoading(true);
-      setError(null);
-      await api.logout();
-      setUser(null);
+      await signOut(auth);
+      setIsAdmin(false);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Logout failed');
-      throw error;
-    } finally {
-      setLoading(false);
+      throw new Error(handleAuthError(error as AuthError));
     }
   };
 
-  const clearError = () => setError(null);
+  const signInWithGoogle = async (useRedirect = false) => {
+    if (!auth) throw new Error('Firebase auth not initialized');
+    const provider = new GoogleAuthProvider();
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      
+      if (useRedirect) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        const result = await signInWithPopup(auth, provider);
+        setIsAdmin(result.user.email === 'naik97059@gmail.com');
+      }
+    } catch (error) {
+      if ((error as AuthError).code === 'auth/popup-blocked') {
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw new Error(handleAuthError(error as AuthError));
+      }
+    }
+  };
 
-  if (loading) {
-    return null;
-  }
+  const signInWithGithub = async (useRedirect = false) => {
+    if (!auth) throw new Error('Firebase auth not initialized');
+    const provider = new GithubAuthProvider();
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      
+      if (useRedirect) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        const result = await signInWithPopup(auth, provider);
+        setIsAdmin(result.user.email === 'naik97059@gmail.com');
+      }
+    } catch (error) {
+      if ((error as AuthError).code === 'auth/popup-blocked') {
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw new Error(handleAuthError(error as AuthError));
+      }
+    }
+  };
+
+  const value = {
+    currentUser,
+    loading,
+    signIn,
+    signUp,
+    logout,
+    signInWithGoogle,
+    signInWithGithub,
+    isAdmin
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        error,
-        login,
-        signup,
-        loginWithGoogle,
-        loginWithGithub,
-        logout,
-        clearError,
-      }}
-    >
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+};
